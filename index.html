@@ -22,6 +22,12 @@
 
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Cloud sync (Firebase). App works fully offline even if this is left unconfigured. -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -31,8 +37,13 @@
           <h1>GYM LOG</h1>
         </div>
         <div class="topbar-actions">
+          <button id="installBtn" class="icon-btn install-btn hidden" aria-label="Install app">
+            <span class="install-icon">⬇️</span><span class="install-label">Install</span>
+          </button>
+          <button id="syncBtn" class="icon-btn sync-btn" aria-label="Cloud sync status" data-state="off">
+            <span class="sync-icon">☁️</span>
+          </button>
           <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
-          <button id="installBtn" class="icon-btn hidden" aria-label="Install app">⬇️</button>
           <button id="notifyBtn" class="icon-btn" aria-label="Enable reminders">🔔</button>
         </div>
       </header>
@@ -131,7 +142,7 @@
         </article>
       </section>
 
-      <section class="grid-two">
+      <section class="grid-three">
         <article class="card">
           <div class="section-header">
             <h3>Goal</h3>
@@ -163,6 +174,22 @@
             </label>
           </div>
           <button id="exportRangeBtn" class="btn btn-secondary">Export range</button>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <h3>Cloud sync</h3>
+            <p>Works offline, backs up when online</p>
+          </div>
+          <div class="sync-status-row">
+            <span id="syncStatusDot" class="sync-dot" data-state="off"></span>
+            <p id="syncStatusText" class="mono">Local only — add Firebase keys to enable cloud sync</p>
+          </div>
+          <p class="muted" style="font-size:0.82rem;margin-top:8px;">
+            Every entry saves to this device instantly, online or offline. When a connection is
+            available it quietly backs up to your Firebase project too, and restores automatically
+            if you reinstall or switch devices signed into the same account.
+          </p>
         </article>
       </section>
 
@@ -202,6 +229,9 @@
           <input id="reasonInput" type="text" placeholder="Felt tired, schedule conflict..." />
         </div>
 
+        <label class="field-label" for="storyInput">Your story</label>
+        <textarea id="storyInput" rows="4" placeholder="What did you do, how did it feel, anything worth remembering about today?"></textarea>
+
         <div class="modal-actions">
           <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
           <button id="saveBtn" class="btn btn-primary">Save</button>
@@ -212,7 +242,7 @@
     <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <div class="modal-card">
         <h3 id="detailTitle">Day details</h3>
-        <div id="detailContent"></div>
+        <div id="detailContent" class="detail-content"></div>
         <div class="modal-actions">
           <button id="closeDetailBtn" class="btn btn-secondary">Close</button>
           <button id="editDetailBtn" class="btn btn-primary">Edit</button>

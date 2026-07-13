@@ -12,6 +12,13 @@ const state = {
   reminderDate: null,
   installPrompt: null,
   calendarView: { year: new Date().getFullYear(), month: new Date().getMonth() },
+  cloud: {
+    db: null,
+    uid: null,
+    docRef: null,
+    pushTimer: null,
+    initialSyncDone: false,
+  },
 };
 
 let weeklyChart;
@@ -29,6 +36,7 @@ function init() {
   registerServiceWorker();
   prepareInstallUi();
   warmReminder();
+  initCloudSync();
 }
 
 function cacheElements() {
@@ -40,6 +48,9 @@ function cacheElements() {
   els.themeToggle = document.getElementById("themeToggle");
   els.installBtn = document.getElementById("installBtn");
   els.notifyBtn = document.getElementById("notifyBtn");
+  els.syncBtn = document.getElementById("syncBtn");
+  els.syncStatusDot = document.getElementById("syncStatusDot");
+  els.syncStatusText = document.getElementById("syncStatusText");
   els.notice = document.getElementById("notice");
   els.totalDays = document.getElementById("totalDays");
   els.currentStreak = document.getElementById("currentStreak");
@@ -76,6 +87,7 @@ function cacheElements() {
   els.workoutWrap = document.getElementById("workoutWrap");
   els.reasonWrap = document.getElementById("reasonWrap");
   els.reasonInput = document.getElementById("reasonInput");
+  els.storyInput = document.getElementById("storyInput");
   els.cancelBtn = document.getElementById("cancelBtn");
   els.saveBtn = document.getElementById("saveBtn");
   els.closeDetailBtn = document.getElementById("closeDetailBtn");
@@ -90,10 +102,12 @@ function bindEvents() {
   els.themeToggle.addEventListener("click", toggleTheme);
   els.installBtn.addEventListener("click", installApp);
   els.notifyBtn.addEventListener("click", requestNotificationPermission);
+  els.syncBtn.addEventListener("click", handleSyncButtonClick);
   els.goalInput.addEventListener("input", (event) => {
     state.goalTarget = Number(event.target.value || 20);
     saveState();
     renderGoal();
+    queueCloudSync();
   });
   els.exportAllBtn.addEventListener("click", () => exportCSV(state.logs));
   els.exportMonthBtn.addEventListener("click", exportCurrentMonthCSV);
@@ -134,6 +148,13 @@ function bindEvents() {
     els.installBtn.classList.add("hidden");
     showNotice("App installed successfully.");
   });
+  window.addEventListener("online", () => {
+    if (state.cloud.docRef) queueCloudSync(true);
+    else setSyncState("off", "Local only — add Firebase keys to enable cloud sync");
+  });
+  window.addEventListener("offline", () => {
+    setSyncState("offline", "Offline — changes saved locally, will sync when back online");
+  });
   setInterval(checkReminder, 60000);
 }
 
@@ -172,6 +193,7 @@ function toggleTheme() {
   applyTheme();
   saveState();
   render();
+  queueCloudSync();
 }
 
 function showNotice(message) {
@@ -205,6 +227,7 @@ function openEntryModal(defaultStatus = "Went", dateKey = getTodayKey()) {
   els.workoutSelect.value = entry?.workoutType || "Chest";
   els.customWorkout.value = entry?.workoutType === "Custom" ? entry.workoutName || "" : "";
   els.reasonInput.value = entry?.reason || "";
+  els.storyInput.value = entry?.story || "";
   els.saveBtn.dataset.date = dateKey;
   els.customWorkout.classList.toggle("hidden", els.workoutSelect.value !== "Custom");
   updateFormVisibility();
@@ -231,6 +254,7 @@ function saveEntry() {
   const workoutType = els.workoutSelect.value;
   const workoutName = workoutType === "Custom" ? els.customWorkout.value.trim() : workoutType;
   const reason = els.reasonInput.value.trim();
+  const story = els.storyInput.value.trim();
 
   const existingIndex = state.logs.findIndex((entry) => entry.date === dateKey);
   const payload = {
@@ -239,6 +263,8 @@ function saveEntry() {
     workoutType: status === "Went" ? workoutType : "",
     workoutName: status === "Went" ? workoutName : "",
     reason: status === "Missed" ? reason : "",
+    story,
+    updatedAt: Date.now(),
   };
 
   if (existingIndex >= 0) {
@@ -252,6 +278,7 @@ function saveEntry() {
   render();
   closeEntryModal();
   showNotice("Entry saved.");
+  queueCloudSync(true);
 }
 
 function render() {
@@ -549,7 +576,10 @@ function renderRecentLogs() {
     const details = entry.status === "Went"
       ? `Workout: ${entry.workoutName || entry.workoutType || "-"}`
       : `Reason: ${entry.reason || "-"}`;
-    return `<div class="activity-item"><strong>${formatDateLabel(entry.date)}</strong><br>${entry.status} · ${details}</div>`;
+    const storyPreview = entry.story
+      ? `<div class="story-preview">${escapeHtml(entry.story.length > 140 ? `${entry.story.slice(0, 140)}…` : entry.story)}</div>`
+      : "";
+    return `<div class="activity-item"><strong>${formatDateLabel(entry.date)}</strong><br>${entry.status} · ${details}${storyPreview}</div>`;
   }).join("");
 }
 
@@ -592,6 +622,7 @@ function openDayDetail(dateKey) {
       <p><strong>Status:</strong> ${entry.status}</p>
       <p><strong>Workout:</strong> ${entry.workoutName || entry.workoutType || "-"}</p>
       <p><strong>Reason:</strong> ${entry.reason || "-"}</p>
+      ${entry.story ? `<div class="story-block">${escapeHtml(entry.story).replace(/\n/g, "<br>")}</div>` : ""}
     `;
   }
   els.editDetailBtn.dataset.date = dateKey;
@@ -660,10 +691,16 @@ function registerServiceWorker() {
 }
 
 function exportCSV(entries) {
-  const rows = [["Date", "Status", "Workout Type", "Workout Name", "Reason"]];
-  entries.forEach((entry) => rows.push([entry.date, entry.status, entry.workoutType || "", entry.workoutName || "", entry.reason || ""]));
+  const rows = [["Date", "Status", "Workout Type", "Workout Name", "Reason", "Story"]];
+  entries.forEach((entry) => rows.push([entry.date, entry.status, entry.workoutType || "", entry.workoutName || "", entry.reason || "", entry.story || ""]));
   const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
   downloadFile(csv, "gym-tracker-export.csv");
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value;
+  return div.innerHTML;
 }
 
 function exportCurrentMonthCSV() {
@@ -693,6 +730,165 @@ function downloadFile(content, filename) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/* ---------- cloud sync (Firebase) ---------- */
+/* The app is fully usable without any of this — every read/write above
+ * goes through localStorage first. This layer just mirrors that same
+ * data to Firestore when a connection is available, and pulls it back
+ * down (merging by most-recent edit) if the app is reopened on a
+ * device that's missing some entries. */
+
+function firebaseIsConfigured() {
+  return (
+    typeof firebase !== "undefined" &&
+    window.firebaseConfig &&
+    window.firebaseConfig.apiKey &&
+    window.firebaseConfig.apiKey !== "YOUR_API_KEY"
+  );
+}
+
+function initCloudSync() {
+  if (!firebaseIsConfigured()) {
+    setSyncState("off", "Local only — add Firebase keys to enable cloud sync");
+    return;
+  }
+
+  try {
+    firebase.initializeApp(window.firebaseConfig);
+  } catch (error) {
+    console.warn("Firebase init failed", error);
+    setSyncState("error", "Cloud sync unavailable — check your Firebase config");
+    return;
+  }
+
+  const db = firebase.firestore();
+  try {
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  } catch (error) {
+    console.warn("Offline persistence unavailable", error);
+  }
+  state.cloud.db = db;
+  setSyncState("syncing", "Connecting…");
+
+  firebase.auth().onAuthStateChanged((user) => {
+    if (!user) return;
+    state.cloud.uid = user.uid;
+    const docRef = db.collection("users").doc(user.uid);
+    state.cloud.docRef = docRef;
+
+    docRef.onSnapshot(
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.exists) mergeCloudData(snap.data());
+        const fromCache = snap.metadata.fromCache;
+        if (fromCache) {
+          setSyncState(
+            navigator.onLine ? "syncing" : "offline",
+            navigator.onLine ? "Syncing…" : "Offline — changes saved locally, will sync when back online"
+          );
+        } else {
+          setSyncState("online", "Synced just now");
+        }
+      },
+      (error) => {
+        console.warn("Cloud listener error", error);
+        setSyncState("error", "Sync error — changes are still saved locally");
+      }
+    );
+  });
+
+  firebase.auth().signInAnonymously().catch((error) => {
+    console.warn("Anonymous sign-in failed", error);
+    setSyncState("error", "Could not connect to cloud — working offline for now");
+  });
+}
+
+function mergeCloudData(cloudData) {
+  if (!cloudData) return;
+  const cloudLogs = Array.isArray(cloudData.logs) ? cloudData.logs : [];
+  const map = new Map();
+  state.logs.forEach((entry) => map.set(entry.date, entry));
+
+  let changed = false;
+  cloudLogs.forEach((cloudEntry) => {
+    const local = map.get(cloudEntry.date);
+    if (!local || (cloudEntry.updatedAt || 0) > (local.updatedAt || 0)) {
+      map.set(cloudEntry.date, cloudEntry);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    state.logs = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  if (!state.cloud.initialSyncDone) {
+    if (typeof cloudData.goalTarget === "number") {
+      state.goalTarget = cloudData.goalTarget;
+      els.goalInput.value = state.goalTarget;
+      changed = true;
+    }
+    state.cloud.initialSyncDone = true;
+  }
+
+  if (changed) {
+    saveState();
+    render();
+  }
+}
+
+function queueCloudSync(immediate = false) {
+  if (!state.cloud.docRef) return;
+  if (!navigator.onLine) {
+    setSyncState("offline", "Offline — changes saved locally, will sync when back online");
+  }
+  clearTimeout(state.cloud.pushTimer);
+  if (immediate) {
+    pushToCloud();
+  } else {
+    state.cloud.pushTimer = setTimeout(pushToCloud, 900);
+  }
+}
+
+function pushToCloud() {
+  if (!state.cloud.docRef) return;
+  setSyncState("syncing", "Syncing…");
+  state.cloud.docRef
+    .set(
+      {
+        logs: state.logs,
+        goalTarget: state.goalTarget,
+        theme: state.theme,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    )
+    .then(() => {
+      setSyncState(
+        navigator.onLine ? "online" : "offline",
+        navigator.onLine ? "Synced just now" : "Saved locally — will sync when back online"
+      );
+    })
+    .catch((error) => {
+      console.warn("Cloud sync failed", error);
+      setSyncState("error", "Sync error — changes are still saved locally");
+    });
+}
+
+function setSyncState(syncState, text) {
+  if (els.syncBtn) els.syncBtn.dataset.state = syncState;
+  if (els.syncStatusDot) els.syncStatusDot.dataset.state = syncState;
+  if (els.syncStatusText) els.syncStatusText.textContent = text;
+}
+
+function handleSyncButtonClick() {
+  if (!firebaseIsConfigured()) {
+    showNotice("Add your Firebase keys in firebase-config.js to enable cloud sync.");
+    return;
+  }
+  showNotice(els.syncStatusText ? els.syncStatusText.textContent : "Checking sync status…");
+  if (state.cloud.docRef) queueCloudSync(true);
 }
 
 init();

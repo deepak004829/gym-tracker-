@@ -1,9 +1,10 @@
-const CACHE_NAME = "gym-tracker-v4";
+const CACHE_NAME = "gym-tracker-v5";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./firebase-config.js",
   "./manifest.json",
   "./icon-180.png",
   "./icon-192.png",

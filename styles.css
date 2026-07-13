@@ -154,6 +154,98 @@ h1, h2, h3, p {
   transform: scale(0.92);
 }
 
+/* install button — icon-only on narrow screens, icon+label on wider ones */
+
+.install-btn {
+  width: auto;
+  padding: 0 14px;
+  gap: 6px;
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.install-label {
+  display: none;
+}
+
+@media (min-width: 560px) {
+  .install-label {
+    display: inline;
+  }
+}
+
+/* cloud sync button + status dot */
+
+.sync-btn {
+  position: relative;
+}
+
+.sync-btn[data-state="syncing"] .sync-icon {
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+
+.sync-btn[data-state="error"]::after,
+.sync-btn[data-state="offline"]::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--danger);
+  border: 2px solid var(--card);
+}
+
+.sync-btn[data-state="online"]::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--card);
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.sync-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--muted);
+}
+
+.sync-dot[data-state="online"] {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.sync-dot[data-state="syncing"] {
+  background: #F2B94A;
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+
+.sync-dot[data-state="offline"],
+.sync-dot[data-state="error"] {
+  background: var(--danger);
+}
+
 /* ---------- punch-card hero ---------- */
 
 .punch-card {
@@ -356,7 +448,7 @@ body.dark .stat-number.accent {
 .calendar .day-cell {
   text-align: center;
   border-radius: 10px;
-  padding: 9px 0;
+  padding: 6px 0 7px;
   font-size: 0.85rem;
   font-family: var(--font-mono);
 }
@@ -366,6 +458,7 @@ body.dark .stat-number.accent {
   font-weight: 700;
   font-size: 0.68rem;
   text-transform: uppercase;
+  padding: 9px 0;
 }
 
 .day-cell {
@@ -373,6 +466,18 @@ body.dark .stat-number.accent {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 46px;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.day-cell:active {
+  transform: scale(0.94);
 }
 
 .day-cell.went {
@@ -387,17 +492,32 @@ body.dark .stat-number.accent {
   border-color: transparent;
 }
 
+body.dark .day-cell.went {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+body.dark .day-cell.missed {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
 .day-num {
   position: relative;
   z-index: 1;
+  font-size: 0.78rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.day-cell.went .day-num,
+.day-cell.missed .day-num {
+  opacity: 0.65;
+  font-size: 0.68rem;
 }
 
 .day-emoji {
-  position: absolute;
-  top: 1px;
-  right: 3px;
-  font-size: 0.62rem;
+  font-size: 1.05rem;
   line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
 }
 
 .day-cell.empty {
@@ -412,6 +532,36 @@ body.dark .stat-number.accent {
 
 body.dark .day-cell.today {
   box-shadow: 0 0 0 2px var(--accent) inset;
+}
+
+/* tighten things up on narrow iPhone-width screens so 7 columns stay comfortable to tap */
+@media (max-width: 400px) {
+  .calendar {
+    gap: 4px;
+  }
+
+  .day-cell {
+    min-height: 40px;
+    border-radius: 8px;
+  }
+
+  .day-num {
+    font-size: 0.68rem;
+  }
+
+  .day-emoji {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .day-cell {
+    min-height: 36px;
+  }
+
+  .day-emoji {
+    font-size: 0.85rem;
+  }
 }
 
 /* ---------- charts ---------- */
@@ -444,6 +594,24 @@ body.dark .day-cell.today {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.grid-three {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .grid-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .grid-three {
+    grid-template-columns: 1fr;
+  }
 }
 
 .activity-list,
@@ -526,7 +694,8 @@ body.dark .day-cell.today {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -535,6 +704,32 @@ select {
   background: var(--bg);
   color: var(--text);
   min-height: 44px;
+}
+
+textarea {
+  resize: vertical;
+  font-family: var(--font-body);
+  line-height: 1.4;
+}
+
+.detail-content p {
+  margin-bottom: 8px;
+  font-size: 0.92rem;
+}
+
+.detail-content .story-block {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.activity-item .story-preview {
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
 }
 
 .export-actions,
@@ -661,6 +856,35 @@ select {
 }
 
 /* ---------- responsive breakpoints ---------- */
+
+@media (min-width: 1000px) {
+  .app-shell {
+    padding-top: 22px;
+    gap: 18px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .punch-text h2 {
+    font-size: 2.8rem;
+  }
+
+  .brand h1 {
+    font-size: 2.4rem;
+  }
+}
+
+@media (min-width: 1300px) {
+  .chart-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .chart-wrap {
+    height: 220px;
+  }
+}
 
 @media (max-width: 900px) {
   .chart-grid {
