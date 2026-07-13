@@ -27,11 +27,12 @@
 // runs fully offline on local storage as before.
 // ────────────────────────────────────────────────────────────────
 
+
 window.firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDhAuCHD9hB-8AqkfZLOxg4w3UeId_5FdA",
+  authDomain: "gym-tracker-4b3e5.firebaseapp.com",
+  projectId: "gym-tracker-4b3e5",
+  storageBucket: "gym-tracker-4b3e5.firebasestorage.app",
+  messagingSenderId: "1061110905035",
+  appId: "1:1061110905035:web:63f8da21292810d121834e"
 };
