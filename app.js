@@ -16,6 +16,7 @@ const state = {
     db: null,
     uid: null,
     docRef: null,
+    unsub: null,
     pushTimer: null,
     initialSyncDone: false,
   },
@@ -42,8 +43,10 @@ function init() {
 function cacheElements() {
   els.wentBtn = document.getElementById("wentBtn");
   els.missedBtn = document.getElementById("missedBtn");
+  els.restBtn = document.getElementById("restBtn");
   els.wentBtnMobile = document.getElementById("wentBtnMobile");
   els.missedBtnMobile = document.getElementById("missedBtnMobile");
+  els.restBtnMobile = document.getElementById("restBtnMobile");
   els.heroDate = document.getElementById("heroDate");
   els.themeToggle = document.getElementById("themeToggle");
   els.installBtn = document.getElementById("installBtn");
@@ -67,6 +70,7 @@ function cacheElements() {
   els.streakChart = document.getElementById("streakChart");
   els.workoutChart = document.getElementById("workoutChart");
   els.recentLogs = document.getElementById("recentLogs");
+  els.journalSearch = document.getElementById("journalSearch");
   els.achievements = document.getElementById("achievements");
   els.goalInput = document.getElementById("goalInput");
   els.goalBar = document.getElementById("goalBar");
@@ -74,8 +78,15 @@ function cacheElements() {
   els.exportAllBtn = document.getElementById("exportAllBtn");
   els.exportMonthBtn = document.getElementById("exportMonthBtn");
   els.exportRangeBtn = document.getElementById("exportRangeBtn");
+  els.exportJsonBtn = document.getElementById("exportJsonBtn");
+  els.importBtn = document.getElementById("importBtn");
+  els.importFile = document.getElementById("importFile");
   els.rangeStart = document.getElementById("rangeStart");
   els.rangeEnd = document.getElementById("rangeEnd");
+  els.syncEmail = document.getElementById("syncEmail");
+  els.syncPassword = document.getElementById("syncPassword");
+  els.linkAccountBtn = document.getElementById("linkAccountBtn");
+  els.signInAccountBtn = document.getElementById("signInAccountBtn");
   els.entryModal = document.getElementById("entryModal");
   els.detailModal = document.getElementById("detailModal");
   els.modalTitle = document.getElementById("modalTitle");
@@ -97,8 +108,10 @@ function cacheElements() {
 function bindEvents() {
   els.wentBtn.addEventListener("click", () => openEntryModal("Went"));
   els.missedBtn.addEventListener("click", () => openEntryModal("Missed"));
+  els.restBtn.addEventListener("click", () => openEntryModal("Rest"));
   els.wentBtnMobile.addEventListener("click", () => openEntryModal("Went"));
   els.missedBtnMobile.addEventListener("click", () => openEntryModal("Missed"));
+  els.restBtnMobile.addEventListener("click", () => openEntryModal("Rest"));
   els.themeToggle.addEventListener("click", toggleTheme);
   els.installBtn.addEventListener("click", installApp);
   els.notifyBtn.addEventListener("click", requestNotificationPermission);
@@ -112,6 +125,12 @@ function bindEvents() {
   els.exportAllBtn.addEventListener("click", () => exportCSV(state.logs));
   els.exportMonthBtn.addEventListener("click", exportCurrentMonthCSV);
   els.exportRangeBtn.addEventListener("click", exportSelectedRangeCSV);
+  els.exportJsonBtn.addEventListener("click", exportJSON);
+  els.importBtn.addEventListener("click", () => els.importFile.click());
+  els.importFile.addEventListener("change", handleImportFile);
+  els.journalSearch.addEventListener("input", (event) => renderRecentLogs(event.target.value));
+  els.linkAccountBtn.addEventListener("click", linkAccountWithEmail);
+  els.signInAccountBtn.addEventListener("click", signInExistingAccount);
   els.saveBtn.addEventListener("click", saveEntry);
   els.cancelBtn.addEventListener("click", closeEntryModal);
   els.statusSelect.addEventListener("change", updateFormVisibility);
@@ -242,7 +261,7 @@ function closeEntryModal() {
 function updateFormVisibility() {
   const status = els.statusSelect.value;
   els.workoutWrap.classList.toggle("hidden", status !== "Went");
-  els.reasonWrap.classList.toggle("hidden", status === "Went");
+  els.reasonWrap.classList.toggle("hidden", status !== "Missed");
   if (status !== "Went") {
     els.customWorkout.classList.add("hidden");
   }
@@ -278,6 +297,7 @@ function saveEntry() {
   render();
   closeEntryModal();
   showNotice("Entry saved.");
+  if (navigator.vibrate) navigator.vibrate(15);
   queueCloudSync(true);
 }
 
@@ -286,7 +306,7 @@ function render() {
   renderStats();
   renderCalendar();
   renderCharts();
-  renderRecentLogs();
+  renderRecentLogs(els.journalSearch.value);
   renderAchievements();
   renderGoal();
 }
@@ -299,9 +319,10 @@ function renderHero() {
 function renderStats() {
   const totalGymDays = state.logs.filter((entry) => entry.status === "Went").length;
   const totalMissedDays = state.logs.filter((entry) => entry.status === "Missed").length;
+  const trackedDays = state.logs.filter((entry) => entry.status !== "Rest").length;
   const currentStreak = calculateCurrentStreak();
   const longestStreak = calculateLongestStreak();
-  const consistency = state.logs.length ? Math.round((totalGymDays / state.logs.length) * 100) : 0;
+  const consistency = trackedDays ? Math.round((totalGymDays / trackedDays) * 100) : 0;
 
   els.totalDays.textContent = totalGymDays;
   els.currentStreak.textContent = currentStreak;
@@ -312,18 +333,22 @@ function renderStats() {
 }
 
 function calculateCurrentStreak() {
-  const sortedLogs = [...state.logs].sort((a, b) => a.date.localeCompare(b.date));
+  if (!state.logs.length) return 0;
   let streak = 0;
-  let cursor = new Date();
+  const cursor = new Date();
   cursor.setHours(12, 0, 0, 0);
 
-  for (let i = sortedLogs.length - 1; i >= 0; i--) {
-    const entry = sortedLogs[i];
-    const entryDate = new Date(`${entry.date}T12:00:00`);
-    const diff = Math.floor((cursor - entryDate) / (1000 * 60 * 60 * 24));
-    if (entry.status === "Went" && diff <= 1) {
+  if (!getEntry(formatCalendarKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while (true) {
+    const entry = getEntry(formatCalendarKey(cursor));
+    if (entry?.status === "Went") {
       streak += 1;
-      cursor = entryDate;
+      cursor.setDate(cursor.getDate() - 1);
+    } else if (entry?.status === "Rest") {
+      cursor.setDate(cursor.getDate() - 1);
     } else {
       break;
     }
@@ -332,17 +357,26 @@ function calculateCurrentStreak() {
 }
 
 function calculateLongestStreak() {
+  if (!state.logs.length) return 0;
+  const sortedLogs = [...state.logs].sort((a, b) => a.date.localeCompare(b.date));
+  const cursor = new Date(`${sortedLogs[0].date}T12:00:00`);
+  const end = new Date();
+  end.setHours(12, 0, 0, 0);
+
   let max = 0;
   let current = 0;
-  const sortedLogs = [...state.logs].sort((a, b) => a.date.localeCompare(b.date));
-  sortedLogs.forEach((entry) => {
-    if (entry.status === "Went") {
+  while (cursor <= end) {
+    const entry = getEntry(formatCalendarKey(cursor));
+    if (entry?.status === "Went") {
       current += 1;
       max = Math.max(max, current);
+    } else if (entry?.status === "Rest") {
+      // rest days pause the count without breaking it
     } else {
       current = 0;
     }
-  });
+    cursor.setDate(cursor.getDate() + 1);
+  }
   return max;
 }
 
@@ -378,12 +412,13 @@ function renderCalendar() {
     cell.type = "button";
     cell.className = "day-cell";
     if (entry) {
-      cell.classList.add(entry.status === "Went" ? "went" : "missed");
+      const cellClass = entry.status === "Went" ? "went" : entry.status === "Rest" ? "rest" : "missed";
+      cell.classList.add(cellClass);
     }
     if (isSameDay(date, new Date())) {
       cell.classList.add("today");
     }
-    const emoji = entry?.status === "Went" ? "❤️" : entry?.status === "Missed" ? "😢" : "";
+    const emoji = entry?.status === "Went" ? "❤️" : entry?.status === "Rest" ? "💤" : entry?.status === "Missed" ? "😢" : "";
     cell.innerHTML = `<span class="day-num">${day}</span>${emoji ? `<span class="day-emoji">${emoji}</span>` : ""}`;
     cell.setAttribute("aria-label", `${formatDateLabel(dateKey)}${entry ? `, ${entry.status}` : ""}`);
     cell.addEventListener("click", () => openDayDetail(dateKey));
@@ -566,16 +601,40 @@ function renderWorkoutChart() {
   });
 }
 
-function renderRecentLogs() {
-  const recent = [...state.logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
-  if (!recent.length) {
-    els.recentLogs.innerHTML = '<div class="activity-item">No activity yet. Log your first workout above.</div>';
+function renderRecentLogs(query = "") {
+  const term = query.trim().toLowerCase();
+  const sorted = [...state.logs].sort((a, b) => b.date.localeCompare(a.date));
+  const source = term
+    ? sorted.filter((entry) => {
+        const haystack = [
+          entry.date,
+          entry.status,
+          entry.workoutType,
+          entry.workoutName,
+          entry.reason,
+          entry.story,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(term);
+      })
+    : sorted.slice(0, 10);
+
+  if (!source.length) {
+    els.recentLogs.innerHTML = term
+      ? '<div class="activity-item">No entries match your search.</div>'
+      : '<div class="activity-item">No activity yet. Log your first workout above.</div>';
     return;
   }
-  els.recentLogs.innerHTML = recent.map((entry) => {
+
+  const list = term ? source.slice(0, 50) : source;
+  els.recentLogs.innerHTML = list.map((entry) => {
     const details = entry.status === "Went"
       ? `Workout: ${entry.workoutName || entry.workoutType || "-"}`
-      : `Reason: ${entry.reason || "-"}`;
+      : entry.status === "Missed"
+      ? `Reason: ${entry.reason || "-"}`
+      : "Rest day";
     const storyPreview = entry.story
       ? `<div class="story-preview">${escapeHtml(entry.story.length > 140 ? `${entry.story.slice(0, 140)}…` : entry.story)}</div>`
       : "";
@@ -620,8 +679,8 @@ function openDayDetail(dateKey) {
     els.detailContent.innerHTML = `
       <p><strong>Date:</strong> ${formatDateLabel(dateKey)}</p>
       <p><strong>Status:</strong> ${entry.status}</p>
-      <p><strong>Workout:</strong> ${entry.workoutName || entry.workoutType || "-"}</p>
-      <p><strong>Reason:</strong> ${entry.reason || "-"}</p>
+      ${entry.status === "Went" ? `<p><strong>Workout:</strong> ${entry.workoutName || entry.workoutType || "-"}</p>` : ""}
+      ${entry.status === "Missed" ? `<p><strong>Reason:</strong> ${entry.reason || "-"}</p>` : ""}
       ${entry.story ? `<div class="story-block">${escapeHtml(entry.story).replace(/\n/g, "<br>")}</div>` : ""}
     `;
   }
@@ -722,8 +781,55 @@ function exportSelectedRangeCSV() {
   exportCSV(filtered);
 }
 
-function downloadFile(content, filename) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+function exportJSON() {
+  const payload = {
+    logs: state.logs,
+    goalTarget: state.goalTarget,
+    theme: state.theme,
+    exportedAt: new Date().toISOString(),
+  };
+  downloadFile(JSON.stringify(payload, null, 2), "gym-tracker-backup.json", "application/json");
+}
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.logs)) throw new Error("Missing logs array");
+
+      const map = new Map();
+      state.logs.forEach((entry) => map.set(entry.date, entry));
+      data.logs.forEach((entry) => {
+        const local = map.get(entry.date);
+        if (!local || (entry.updatedAt || 0) >= (local.updatedAt || 0)) {
+          map.set(entry.date, entry);
+        }
+      });
+      state.logs = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+      if (typeof data.goalTarget === "number") {
+        state.goalTarget = data.goalTarget;
+        els.goalInput.value = state.goalTarget;
+      }
+
+      saveState();
+      render();
+      queueCloudSync(true);
+      showNotice("Backup imported successfully.");
+    } catch (error) {
+      console.warn("Import failed", error);
+      showNotice("Couldn't read that backup file — is it a Gym Tracker JSON export?");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
+function downloadFile(content, filename, mimeType = "text/csv;charset=utf-8;") {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -773,11 +879,15 @@ function initCloudSync() {
 
   firebase.auth().onAuthStateChanged((user) => {
     if (!user) return;
+    if (state.cloud.unsub) {
+      state.cloud.unsub();
+      state.cloud.unsub = null;
+    }
     state.cloud.uid = user.uid;
     const docRef = db.collection("users").doc(user.uid);
     state.cloud.docRef = docRef;
 
-    docRef.onSnapshot(
+    state.cloud.unsub = docRef.onSnapshot(
       { includeMetadataChanges: true },
       (snap) => {
         if (snap.exists) mergeCloudData(snap.data());
@@ -889,6 +999,67 @@ function handleSyncButtonClick() {
   }
   showNotice(els.syncStatusText ? els.syncStatusText.textContent : "Checking sync status…");
   if (state.cloud.docRef) queueCloudSync(true);
+}
+
+function linkAccountWithEmail() {
+  if (!firebaseIsConfigured()) {
+    showNotice("Add your Firebase keys in firebase-config.js first.");
+    return;
+  }
+  const email = els.syncEmail.value.trim();
+  const password = els.syncPassword.value;
+  if (!email || password.length < 6) {
+    showNotice("Enter an email and a password with 6+ characters.");
+    return;
+  }
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    showNotice("Not connected to the cloud yet — try again in a moment.");
+    return;
+  }
+  const credential = firebase.auth.EmailAuthProvider.credential(email, password);
+  user
+    .linkWithCredential(credential)
+    .then(() => {
+      showNotice("Data secured! Sign in with this email on any device to restore it.");
+      els.syncPassword.value = "";
+    })
+    .catch((error) => {
+      console.warn("Account linking failed", error);
+      if (error.code === "auth/email-already-in-use" || error.code === "auth/credential-already-in-use") {
+        showNotice("That email is already secured elsewhere — use 'Sign in / restore' instead.");
+      } else if (error.code === "auth/weak-password") {
+        showNotice("Choose a stronger password (6+ characters).");
+      } else {
+        showNotice("Couldn't secure the account. Please try again.");
+      }
+    });
+}
+
+function signInExistingAccount() {
+  if (!firebaseIsConfigured()) {
+    showNotice("Add your Firebase keys in firebase-config.js first.");
+    return;
+  }
+  const email = els.syncEmail.value.trim();
+  const password = els.syncPassword.value;
+  if (!email || !password) {
+    showNotice("Enter your email and password to restore your data.");
+    return;
+  }
+  setSyncState("syncing", "Signing in…");
+  firebase
+    .auth()
+    .signInWithEmailAndPassword(email, password)
+    .then(() => {
+      showNotice("Signed in — restoring your data…");
+      els.syncPassword.value = "";
+    })
+    .catch((error) => {
+      console.warn("Sign-in failed", error);
+      showNotice("Sign-in failed — check the email and password and try again.");
+      setSyncState("error", "Sign-in failed — changes are still saved locally");
+    });
 }
 
 init();

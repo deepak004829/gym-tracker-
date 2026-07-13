@@ -58,6 +58,7 @@
           </div>
           <div class="hero-actions">
             <button id="wentBtn" class="btn btn-primary">Went today</button>
+            <button id="restBtn" class="btn btn-neutral">Rest day</button>
             <button id="missedBtn" class="btn btn-danger">Missed today</button>
           </div>
         </div>
@@ -130,6 +131,7 @@
             <h3>Recent activity</h3>
             <p>Last 10 entries</p>
           </div>
+          <input id="journalSearch" type="search" placeholder="Search your journal — workout, reason, story…" />
           <div id="recentLogs" class="activity-list"></div>
         </article>
 
@@ -174,6 +176,11 @@
             </label>
           </div>
           <button id="exportRangeBtn" class="btn btn-secondary">Export range</button>
+          <div class="backup-row">
+            <button id="exportJsonBtn" class="btn btn-secondary">Full backup (.json)</button>
+            <button id="importBtn" class="btn btn-secondary">Import backup</button>
+            <input id="importFile" type="file" accept="application/json" class="hidden" />
+          </div>
         </article>
 
         <article class="card">
@@ -190,6 +197,19 @@
             available it quietly backs up to your Firebase project too, and restores automatically
             if you reinstall or switch devices signed into the same account.
           </p>
+          <div class="secure-account">
+            <label class="field-label" for="syncEmail">Secure your data with an email (optional)</label>
+            <input id="syncEmail" type="email" placeholder="you@example.com" autocomplete="email" />
+            <input id="syncPassword" type="password" placeholder="Password (6+ characters)" autocomplete="new-password" />
+            <div class="secure-account-actions">
+              <button id="linkAccountBtn" class="btn btn-secondary">Secure this device's data</button>
+              <button id="signInAccountBtn" class="btn btn-secondary">Sign in / restore</button>
+            </div>
+            <p class="muted" style="font-size:0.78rem;">
+              "Secure" links this email to what's already synced here. "Sign in" pulls your data down
+              onto a new device or after a reinstall.
+            </p>
+          </div>
         </article>
       </section>
 
@@ -198,6 +218,7 @@
 
     <nav class="mobile-bar" aria-label="Quick log">
       <button id="wentBtnMobile" class="bar-btn bar-went">Went</button>
+      <button id="restBtnMobile" class="bar-btn bar-rest">Rest</button>
       <button id="missedBtnMobile" class="bar-btn bar-missed">Missed</button>
     </nav>
 
@@ -207,6 +228,7 @@
         <label class="field-label" for="statusSelect">Status</label>
         <select id="statusSelect">
           <option value="Went">Went</option>
+          <option value="Rest">Rest day</option>
           <option value="Missed">Missed</option>
         </select>
 

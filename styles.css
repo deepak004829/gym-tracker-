@@ -11,6 +11,8 @@
   --danger-soft: #FBE2D8;
   --success-soft: #E4F5C4;
   --border: #DEE2D6;
+  --neutral: #7FA7D6;
+  --neutral-soft: #E3ECF6;
   --shadow: 0 18px 36px rgba(16, 21, 13, 0.10);
   --radius-lg: 22px;
   --radius-md: 14px;
@@ -32,6 +34,8 @@ body.dark {
   --danger-soft: rgba(255, 122, 82, 0.14);
   --success-soft: rgba(198, 255, 75, 0.14);
   --border: #263021;
+  --neutral: #7FA7D6;
+  --neutral-soft: rgba(127, 167, 214, 0.16);
   --shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
 }
 
@@ -328,6 +332,12 @@ h1, h2, h3, p {
   color: #2a0d02;
 }
 
+.btn-neutral {
+  background: var(--neutral-soft);
+  color: var(--neutral);
+  border: 1px solid color-mix(in srgb, var(--neutral) 40%, transparent);
+}
+
 .btn-secondary {
   background: transparent;
   color: var(--text);
@@ -492,6 +502,23 @@ body.dark .stat-number.accent {
   border-color: transparent;
 }
 
+.day-cell.rest {
+  background: color-mix(in srgb, var(--neutral) 18%, transparent);
+  font-weight: 700;
+  border-color: transparent;
+}
+
+body.dark .day-cell.rest {
+  background: color-mix(in srgb, var(--neutral) 20%, transparent);
+}
+
+.day-cell.went .day-num,
+.day-cell.missed .day-num,
+.day-cell.rest .day-num {
+  opacity: 0.65;
+  font-size: 0.68rem;
+}
+
 body.dark .day-cell.went {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
@@ -506,12 +533,6 @@ body.dark .day-cell.missed {
   font-size: 0.78rem;
   line-height: 1;
   opacity: 0.85;
-}
-
-.day-cell.went .day-num,
-.day-cell.missed .day-num {
-  opacity: 0.65;
-  font-size: 0.68rem;
 }
 
 .day-emoji {
@@ -748,6 +769,39 @@ textarea {
   color: var(--muted);
 }
 
+.backup-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.secure-account {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.secure-account-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.secure-account-actions .btn {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+}
+
+#journalSearch {
+  margin-bottom: 12px;
+}
+
 /* ---------- modal ---------- */
 
 .modal {
@@ -839,6 +893,11 @@ textarea {
   .bar-went {
     background: var(--accent);
     color: var(--accent-ink);
+  }
+
+  .bar-rest {
+    background: var(--neutral-soft);
+    color: var(--neutral);
   }
 
   .bar-missed {
