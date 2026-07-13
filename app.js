@@ -21,7 +21,6 @@ const state = {
 
 let weeklyChart;
 let monthlyChart;
-let streakChart;
 let workoutChart;
 
 const els = {};
@@ -70,13 +69,13 @@ function cacheElements() {
 
   els.weeklyChart = document.getElementById("weeklyChart");
   els.monthlyChart = document.getElementById("monthlyChart");
-  els.streakChart = document.getElementById("streakChart");
   els.workoutChart = document.getElementById("workoutChart");
 
   els.recentLogs = document.getElementById("recentLogs");
   els.achievements = document.getElementById("achievements");
 
   els.goalInput = document.getElementById("goalInput");
+  els.saveGoalBtn = document.getElementById("saveGoalBtn");
   els.goalBar = document.getElementById("goalBar");
   els.goalText = document.getElementById("goalText");
 
@@ -137,11 +136,22 @@ function bindEvents() {
   els.installBtn.addEventListener("click", installApp);
   els.notifyBtn.addEventListener("click", requestNotificationPermission);
 
-  els.goalInput.addEventListener("input", (event) => {
-    state.goalTarget = Number(event.target.value || 20);
-    saveState();
-    renderGoal();
+  els.saveGoalBtn.addEventListener("click", () => {
+
+    if (els.goalInput.disabled) {
+
+      els.goalInput.disabled = false;
+
+      els.saveGoalBtn.textContent = "Save Goal";
+
+      els.goalInput.focus();
+
+      return;
+    }
+
+    saveGoal();
   });
+
 
   els.exportAllBtn.addEventListener("click", () => exportCSV(state.logs));
   els.exportMonthBtn.addEventListener("click", exportCurrentMonthCSV);
@@ -234,7 +244,17 @@ function loadState() {
     console.warn("Unable to load saved data", error);
   }
   applyTheme();
+  if (state.goalTarget > 0) {
+
   els.goalInput.value = state.goalTarget;
+
+  els.goalInput.disabled = true;
+
+  if (els.saveGoalBtn) {
+    els.saveGoalBtn.textContent = "Edit Goal";
+  }
+}
+
 }
 
 function saveState() {
@@ -260,6 +280,27 @@ function toggleTheme() {
   applyTheme();
   saveState();
   render();
+}
+function saveGoal() {
+
+  const target = Number(els.goalInput.value);
+
+  if (!target || target < 1) {
+    showNotice("Please enter a valid goal.");
+    return;
+  }
+
+  state.goalTarget = target;
+
+  saveState();
+
+  els.goalInput.disabled = true;
+
+  els.saveGoalBtn.textContent = "Edit Goal";
+
+  renderGoal();
+
+  showNotice("Goal saved.");
 }
 
 function showNotice(message) {
@@ -688,10 +729,8 @@ function isSameDay(a, b) {
 function renderCharts() {
   renderWeeklyChart();
   renderMonthlyChart();
-  renderStreakChart();
   renderWorkoutChart();
 }
-
 function chartTextColor() {
   return getComputedStyle(document.body).getPropertyValue("--text").trim() || "#10150D";
 }
@@ -767,27 +806,6 @@ function renderMonthlyChart() {
   monthlyChart = new Chart(els.monthlyChart, {
     type: "line",
     data: { labels: months, datasets: [{ label: "Monthly gym days", data, borderColor: chartAccentColor(), tension: 0.3, fill: true, backgroundColor: chartAccentColor() + "33" }] },
-    options: baseChartOptions(false),
-  });
-}
-
-function renderStreakChart() {
-  const labels = [];
-  const data = [];
-  const end = new Date();
-  for (let i = 29; i >= 0; i -= 1) {
-    const date = new Date(end);
-    date.setDate(end.getDate() - i);
-    const key = formatCalendarKey(date);
-    labels.push(date.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
-    const entry = getEntry(key);
-    data.push(entry?.status === "Went" ? 1 : 0);
-  }
-
-  if (streakChart) streakChart.destroy();
-  streakChart = new Chart(els.streakChart, {
-    type: "line",
-    data: { labels, datasets: [{ label: "Daily activity", data, borderColor: chartAccentColor(), backgroundColor: chartAccentColor() + "22", fill: true, tension: 0.3, pointRadius: 0 }] },
     options: baseChartOptions(false),
   });
 }
@@ -934,10 +952,31 @@ function renderAchievements() {
 }
 
 function renderGoal() {
-  const totalGymDays = state.logs.filter((entry) => entry.status === "Went").length;
-  const progress = Math.min(100, Math.round((totalGymDays / state.goalTarget) * 100));
+
+  const totalGymDays =
+    state.logs.filter(
+      entry => entry.status === "Went"
+    ).length;
+
+  const progress =
+    state.goalTarget > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (totalGymDays / state.goalTarget) * 100
+          )
+        )
+      : 0;
+
   els.goalBar.style.width = `${progress}%`;
-  els.goalText.textContent = `${totalGymDays}/${state.goalTarget} days completed (${progress}%)`;
+
+  els.goalBar.style.background =
+    progress >= 100
+      ? "#00C853"
+      : "#4CAF50";
+
+  els.goalText.textContent =
+    `${totalGymDays}/${state.goalTarget} gym days completed (${progress}%)`;
 }
 
 /* ================= DAY DETAIL ================= */

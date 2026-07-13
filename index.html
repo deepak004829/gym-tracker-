@@ -160,10 +160,6 @@
             <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
           </article>
           <article class="card chart-card">
-            <h3>Last 30 days</h3>
-            <div class="chart-wrap"><canvas id="streakChart"></canvas></div>
-          </article>
-          <article class="card chart-card">
             <h3>Workout mix</h3>
             <div class="chart-wrap"><canvas id="workoutChart"></canvas></div>
           </article>
@@ -180,17 +176,41 @@
 
       <!-- ================= SETTINGS TAB ================= -->
       <section class="tab-panel hidden" id="panel-settings">
-        <section class="card">
-          <div class="section-header">
-            <h3>Goal</h3>
-            <p>Set your target gym days</p>
-          </div>
-          <label class="field-label" for="goalInput">Target days</label>
-          <input id="goalInput" type="number" min="1" max="365" value="20" inputmode="numeric" />
-          <div class="progress-bar"><div id="goalBar" class="progress-fill"></div></div>
-          <p id="goalText" class="muted mono"></p>
-        </section>
+<section class="card">
 
+  <div class="section-header">
+    <h3>GOAL</h3>
+    <p>Set your target gym days</p>
+  </div>
+
+  <label class="field-label" for="goalInput">
+    Target Days
+  </label>
+
+  <input
+    id="goalInput"
+    type="number"
+    min="1"
+    max="365"
+    placeholder="Enter goal"
+    inputmode="numeric"
+  />
+
+  <button
+    id="saveGoalBtn"
+    class="btn btn-primary"
+    style="margin-top:12px;"
+  >
+    Save Goal
+  </button>
+
+  <div class="progress-bar" style="margin-top:16px;">
+    <div id="goalBar" class="progress-fill"></div>
+  </div>
+
+  <p id="goalText" class="muted mono"></p>
+
+</section>
         <section class="card">
           <div class="section-header">
             <h3>Export</h3>
