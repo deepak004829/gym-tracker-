@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+    <meta name="theme-color" content="#0D110A" />
+    <meta name="description" content="A daily gym habit tracker you can install on your phone" />
+    <title>Gym Tracker</title>
+
+    <!-- iOS install support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Gym Log" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon-192.png" type="image/png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <p class="eyebrow">Member since today</p>
+          <h1>GYM LOG</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
+          <button id="installBtn" class="icon-btn hidden" aria-label="Install app">⬇️</button>
+          <button id="notifyBtn" class="icon-btn" aria-label="Enable reminders">🔔</button>
+        </div>
+      </header>
+
+      <section class="hero card punch-card">
+        <div class="punch-holes" aria-hidden="true"></div>
+        <div class="punch-body">
+          <div class="punch-text">
+            <p class="eyebrow">Today's ticket</p>
+            <h2 id="heroDate">—</h2>
+            <p class="hero-copy">Punch in when you go. Missing a day breaks the streak, not the plan.</p>
+          </div>
+          <div class="hero-actions">
+            <button id="wentBtn" class="btn btn-primary">Went today</button>
+            <button id="missedBtn" class="btn btn-danger">Missed today</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="notice hidden" id="notice" role="status" aria-live="polite"></section>
+
+      <section class="stats-grid">
+        <article class="card stat-card">
+          <p class="stat-label">Total days</p>
+          <h3 id="totalDays" class="stat-number">0</h3>
+        </article>
+        <article class="card stat-card">
+          <p class="stat-label">Streak</p>
+          <h3 id="currentStreak" class="stat-number accent">0</h3>
+        </article>
+        <article class="card stat-card">
+          <p class="stat-label">Best streak</p>
+          <h3 id="longestStreak" class="stat-number">0</h3>
+        </article>
+        <article class="card stat-card">
+          <p class="stat-label">Consistency</p>
+          <h3 id="consistency" class="stat-number">0%</h3>
+        </article>
+        <article class="card stat-card">
+          <p class="stat-label">Missed</p>
+          <h3 id="missedDays" class="stat-number danger">0</h3>
+        </article>
+        <article class="card stat-card">
+          <p class="stat-label">Goal</p>
+          <h3 id="goalProgressText" class="stat-number">0%</h3>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h3>Calendar</h3>
+          <p id="calendarLabel" class="mono">Loading…</p>
+        </div>
+        <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h3>Year in reps</h3>
+          <p id="heatmapLabel" class="mono">0 gym days this year</p>
+        </div>
+        <div class="heatmap-scroll">
+          <div id="contributionGrid" class="heatmap" aria-label="Contribution grid"></div>
+        </div>
+      </section>
+
+      <section class="chart-grid">
+        <article class="card chart-card">
+          <h3>Weekly progress</h3>
+          <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
+        </article>
+        <article class="card chart-card">
+          <h3>Monthly progress</h3>
+          <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+        </article>
+        <article class="card chart-card">
+          <h3>Last 30 days</h3>
+          <div class="chart-wrap"><canvas id="streakChart"></canvas></div>
+        </article>
+        <article class="card chart-card">
+          <h3>Workout mix</h3>
+          <div class="chart-wrap"><canvas id="workoutChart"></canvas></div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <div class="section-header">
+            <h3>Recent activity</h3>
+            <p>Last 10 entries</p>
+          </div>
+          <div id="recentLogs" class="activity-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <h3>Milestones</h3>
+            <p>Stamped as you earn them</p>
+          </div>
+          <div id="achievements" class="achievement-list"></div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <div class="section-header">
+            <h3>Goal</h3>
+            <p>Set your target gym days</p>
+          </div>
+          <label class="field-label" for="goalInput">Target days</label>
+          <input id="goalInput" type="number" min="1" max="365" value="20" inputmode="numeric" />
+          <div class="progress-bar"><div id="goalBar" class="progress-fill"></div></div>
+          <p id="goalText" class="muted mono"></p>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <h3>Export</h3>
+            <p>Save your logs as CSV</p>
+          </div>
+          <div class="export-actions">
+            <button id="exportAllBtn" class="btn btn-secondary">Export all</button>
+            <button id="exportMonthBtn" class="btn btn-secondary">Export month</button>
+          </div>
+          <div class="range-row">
+            <label>
+              <span>From</span>
+              <input id="rangeStart" type="date" />
+            </label>
+            <label>
+              <span>To</span>
+              <input id="rangeEnd" type="date" />
+            </label>
+          </div>
+          <button id="exportRangeBtn" class="btn btn-secondary">Export range</button>
+        </article>
+      </section>
+
+      <div class="bottom-spacer" aria-hidden="true"></div>
+    </div>
+
+    <nav class="mobile-bar" aria-label="Quick log">
+      <button id="wentBtnMobile" class="bar-btn bar-went">Went</button>
+      <button id="missedBtnMobile" class="bar-btn bar-missed">Missed</button>
+    </nav>
+
+    <div id="entryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-card">
+        <h3 id="modalTitle">Log today</h3>
+        <label class="field-label" for="statusSelect">Status</label>
+        <select id="statusSelect">
+          <option value="Went">Went</option>
+          <option value="Missed">Missed</option>
+        </select>
+
+        <div id="workoutWrap">
+          <label class="field-label" for="workoutSelect">Workout type</label>
+          <select id="workoutSelect">
+            <option value="Chest">Chest</option>
+            <option value="Back">Back</option>
+            <option value="Legs">Legs</option>
+            <option value="Shoulders">Shoulders</option>
+            <option value="Arms">Arms</option>
+            <option value="Cardio">Cardio</option>
+            <option value="Custom">Custom</option>
+          </select>
+          <input id="customWorkout" class="hidden" type="text" placeholder="Enter custom workout" />
+        </div>
+
+        <div id="reasonWrap" class="hidden">
+          <label class="field-label" for="reasonInput">Reason</label>
+          <input id="reasonInput" type="text" placeholder="Felt tired, schedule conflict..." />
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+          <button id="saveBtn" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="modal-card">
+        <h3 id="detailTitle">Day details</h3>
+        <div id="detailContent"></div>
+        <div class="modal-actions">
+          <button id="closeDetailBtn" class="btn btn-secondary">Close</button>
+          <button id="editDetailBtn" class="btn btn-primary">Edit</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
