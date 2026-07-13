@@ -328,23 +328,35 @@ body.dark .stat-number.accent {
 }
 
 .day-cell {
+  position: relative;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
 }
 
 .day-cell.went {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   font-weight: 700;
   border-color: transparent;
 }
 
 .day-cell.missed {
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
   font-weight: 700;
   border-color: transparent;
+}
+
+.day-num {
+  position: relative;
+  z-index: 1;
+}
+
+.day-emoji {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 0.62rem;
+  line-height: 1;
 }
 
 .day-cell.empty {
@@ -370,24 +382,53 @@ body.dark .day-cell.today {
   mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
 }
 
+.heatmap-inner {
+  width: max-content;
+  display: grid;
+  gap: 6px;
+}
+
+.heatmap-months {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 14px;
+  gap: 3px;
+}
+
+.heatmap-month-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
 .heatmap {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 1fr);
+  grid-auto-columns: 14px;
+  grid-template-rows: repeat(7, 14px);
   gap: 3px;
-  width: max-content;
+}
+
+/* week wrapper must not create its own box, or its 7 children
+   get flowed into a single grid cell instead of 7 separate ones */
+.heatmap-week {
+  display: contents;
 }
 
 .heat-cell {
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
   background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
 }
 
-.heat-cell.went-1 { background: color-mix(in srgb, var(--accent) 45%, var(--border)); }
-.heat-cell.went-2 { background: color-mix(in srgb, var(--accent) 75%, var(--border)); }
-.heat-cell.went-3 { background: var(--accent); }
+.heat-cell.went { background: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .heat-cell.missed { background: var(--danger-soft); }
 
 /* ---------- charts ---------- */

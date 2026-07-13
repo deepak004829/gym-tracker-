@@ -49,6 +49,7 @@ function cacheElements() {
   els.calendar = document.getElementById("calendar");
   els.calendarLabel = document.getElementById("calendarLabel");
   els.contributionGrid = document.getElementById("contributionGrid");
+  els.heatmapMonths = document.getElementById("heatmapMonths");
   els.heatmapLabel = document.getElementById("heatmapLabel");
   els.weeklyChart = document.getElementById("weeklyChart");
   els.monthlyChart = document.getElementById("monthlyChart");
@@ -355,7 +356,9 @@ function renderCalendar() {
     if (isSameDay(date, new Date())) {
       cell.classList.add("today");
     }
-    cell.textContent = day;
+    const emoji = entry?.status === "Went" ? "❤️" : entry?.status === "Missed" ? "😢" : "";
+    cell.innerHTML = `<span class="day-num">${day}</span>${emoji ? `<span class="day-emoji">${emoji}</span>` : ""}`;
+    cell.setAttribute("aria-label", `${formatDateLabel(dateKey)}${entry ? `, ${entry.status}` : ""}`);
     cell.addEventListener("click", () => openDayDetail(dateKey));
     els.calendar.appendChild(cell);
   }
@@ -379,8 +382,22 @@ function renderContributionGrid() {
   const totalGymDays = state.logs.filter((entry) => entry.status === "Went" && entry.date.startsWith(`${currentYear}-`)).length;
   els.heatmapLabel.textContent = `${totalGymDays} gym days in ${currentYear}`;
   els.contributionGrid.innerHTML = "";
+  els.heatmapMonths.innerHTML = "";
 
+  let lastMonth = -1;
   for (let i = 0; i < 53; i += 1) {
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + i * 7);
+    const monthIdx = weekStart.getMonth();
+    if (monthIdx !== lastMonth) {
+      const label = document.createElement("div");
+      label.className = "heatmap-month-label";
+      label.style.gridColumn = String(i + 1);
+      label.textContent = weekStart.toLocaleDateString(undefined, { month: "short" });
+      els.heatmapMonths.appendChild(label);
+      lastMonth = monthIdx;
+    }
+
     const week = document.createElement("div");
     week.className = "heatmap-week";
     for (let j = 0; j < 7; j += 1) {
@@ -390,10 +407,12 @@ function renderContributionGrid() {
       const entry = getEntry(key);
       const cell = document.createElement("div");
       cell.className = "heat-cell";
-      cell.title = `${key}: ${entry ? entry.status : "No record"}`;
+      cell.title = `${formatDateLabel(key)}: ${entry ? entry.status : "No record"}`;
       if (entry?.status === "Went") {
-        cell.classList.add(`went-${Math.min(3, 1 + (entry.workoutName ? 1 : 0))}`);
+        cell.textContent = "❤️";
+        cell.classList.add("went");
       } else if (entry?.status === "Missed") {
+        cell.textContent = "😢";
         cell.classList.add("missed");
       }
       week.appendChild(cell);
