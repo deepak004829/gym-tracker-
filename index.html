@@ -84,22 +84,14 @@
       <section class="card">
         <div class="section-header">
           <h3>Calendar</h3>
-          <p id="calendarLabel" class="mono">Loading…</p>
-        </div>
-        <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
-      </section>
-
-      <section class="card">
-        <div class="section-header">
-          <h3>Year in reps</h3>
-          <p id="heatmapLabel" class="mono">0 gym days this year</p>
-        </div>
-        <div class="heatmap-scroll">
-          <div class="heatmap-inner">
-            <div id="heatmapMonths" class="heatmap-months" aria-hidden="true"></div>
-            <div id="contributionGrid" class="heatmap" aria-label="Contribution grid"></div>
+          <div class="month-nav">
+            <button id="prevMonthBtn" class="nav-arrow" aria-label="Previous month">‹</button>
+            <p id="calendarLabel" class="mono">Loading…</p>
+            <button id="nextMonthBtn" class="nav-arrow" aria-label="Next month">›</button>
           </div>
         </div>
+        <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
+        <p class="swipe-hint muted">Swipe left or right to change months</p>
       </section>
 
       <section class="chart-grid">

@@ -11,6 +11,7 @@ const state = {
   goalTarget: 20,
   reminderDate: null,
   installPrompt: null,
+  calendarView: { year: new Date().getFullYear(), month: new Date().getMonth() },
 };
 
 let weeklyChart;
@@ -48,9 +49,8 @@ function cacheElements() {
   els.goalProgressText = document.getElementById("goalProgressText");
   els.calendar = document.getElementById("calendar");
   els.calendarLabel = document.getElementById("calendarLabel");
-  els.contributionGrid = document.getElementById("contributionGrid");
-  els.heatmapMonths = document.getElementById("heatmapMonths");
-  els.heatmapLabel = document.getElementById("heatmapLabel");
+  els.prevMonthBtn = document.getElementById("prevMonthBtn");
+  els.nextMonthBtn = document.getElementById("nextMonthBtn");
   els.weeklyChart = document.getElementById("weeklyChart");
   els.monthlyChart = document.getElementById("monthlyChart");
   els.streakChart = document.getElementById("streakChart");
@@ -105,6 +105,9 @@ function bindEvents() {
     els.customWorkout.classList.toggle("hidden", els.workoutSelect.value !== "Custom");
   });
   els.closeDetailBtn.addEventListener("click", closeDetailModal);
+  els.prevMonthBtn.addEventListener("click", () => changeMonth(-1));
+  els.nextMonthBtn.addEventListener("click", () => changeMonth(1));
+  bindCalendarSwipe();
   els.editDetailBtn.addEventListener("click", () => {
     const selectedDate = els.editDetailBtn.dataset.date;
     closeDetailModal();
@@ -255,7 +258,6 @@ function render() {
   renderHero();
   renderStats();
   renderCalendar();
-  renderContributionGrid();
   renderCharts();
   renderRecentLogs();
   renderAchievements();
@@ -318,14 +320,12 @@ function calculateLongestStreak() {
 }
 
 function renderCalendar() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const { year, month } = state.calendarView;
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDay = firstDay.getDay();
   const daysInMonth = lastDay.getDate();
-  const monthLabel = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthLabel = firstDay.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   els.calendarLabel.textContent = monthLabel;
   els.calendar.innerHTML = "";
 
@@ -364,6 +364,44 @@ function renderCalendar() {
   }
 }
 
+function changeMonth(delta) {
+  let { year, month } = state.calendarView;
+  month += delta;
+  if (month < 0) {
+    month = 11;
+    year -= 1;
+  } else if (month > 11) {
+    month = 0;
+    year += 1;
+  }
+  state.calendarView = { year, month };
+  renderCalendar();
+}
+
+function bindCalendarSwipe() {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  els.calendar.addEventListener("touchstart", (event) => {
+    const touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    tracking = true;
+  }, { passive: true });
+
+  els.calendar.addEventListener("touchend", (event) => {
+    if (!tracking) return;
+    tracking = false;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      changeMonth(deltaX < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+}
+
 function formatCalendarKey(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -373,52 +411,6 @@ function formatCalendarKey(date) {
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function renderContributionGrid() {
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const start = new Date(currentYear, 0, 1);
-  const totalGymDays = state.logs.filter((entry) => entry.status === "Went" && entry.date.startsWith(`${currentYear}-`)).length;
-  els.heatmapLabel.textContent = `${totalGymDays} gym days in ${currentYear}`;
-  els.contributionGrid.innerHTML = "";
-  els.heatmapMonths.innerHTML = "";
-
-  let lastMonth = -1;
-  for (let i = 0; i < 53; i += 1) {
-    const weekStart = new Date(start);
-    weekStart.setDate(start.getDate() + i * 7);
-    const monthIdx = weekStart.getMonth();
-    if (monthIdx !== lastMonth) {
-      const label = document.createElement("div");
-      label.className = "heatmap-month-label";
-      label.style.gridColumn = String(i + 1);
-      label.textContent = weekStart.toLocaleDateString(undefined, { month: "short" });
-      els.heatmapMonths.appendChild(label);
-      lastMonth = monthIdx;
-    }
-
-    const week = document.createElement("div");
-    week.className = "heatmap-week";
-    for (let j = 0; j < 7; j += 1) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i * 7 + j);
-      const key = formatCalendarKey(date);
-      const entry = getEntry(key);
-      const cell = document.createElement("div");
-      cell.className = "heat-cell";
-      cell.title = `${formatDateLabel(key)}: ${entry ? entry.status : "No record"}`;
-      if (entry?.status === "Went") {
-        cell.textContent = "❤️";
-        cell.classList.add("went");
-      } else if (entry?.status === "Missed") {
-        cell.textContent = "😢";
-        cell.classList.add("missed");
-      }
-      week.appendChild(cell);
-    }
-    els.contributionGrid.appendChild(week);
-  }
 }
 
 function renderCharts() {

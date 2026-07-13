@@ -292,6 +292,47 @@ body.dark .stat-number.accent {
   margin-bottom: 12px;
 }
 
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-nav .mono {
+  min-width: 108px;
+  text-align: center;
+}
+
+.nav-arrow {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-arrow:active {
+  transform: scale(0.92);
+}
+
+.swipe-hint {
+  text-align: center;
+  font-size: 0.72rem;
+  margin-top: 10px;
+}
+
+@media (min-width: 640px) {
+  .swipe-hint {
+    display: none;
+  }
+}
+
 .section-header h3 {
   font-family: var(--font-display);
   font-size: 1.3rem;
@@ -372,64 +413,6 @@ body.dark .stat-number.accent {
 body.dark .day-cell.today {
   box-shadow: 0 0 0 2px var(--accent) inset;
 }
-
-/* ---------- heatmap ---------- */
-
-.heatmap-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 4px;
-  mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
-}
-
-.heatmap-inner {
-  width: max-content;
-  display: grid;
-  gap: 6px;
-}
-
-.heatmap-months {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 14px;
-  gap: 3px;
-}
-
-.heatmap-month-label {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-.heatmap {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 14px;
-  grid-template-rows: repeat(7, 14px);
-  gap: 3px;
-}
-
-/* week wrapper must not create its own box, or its 7 children
-   get flowed into a single grid cell instead of 7 separate ones */
-.heatmap-week {
-  display: contents;
-}
-
-.heat-cell {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  background: var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  line-height: 1;
-}
-
-.heat-cell.went { background: color-mix(in srgb, var(--accent) 35%, var(--border)); }
-.heat-cell.missed { background: var(--danger-soft); }
 
 /* ---------- charts ---------- */
 
