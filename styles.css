@@ -254,7 +254,7 @@ h1, h2, h3, p {
 
 .punch-card {
   position: relative;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 55%, var(--card) 55%);
+  background: var(--accent);
   color: var(--accent-ink);
   overflow: hidden;
   padding: 0;
@@ -294,10 +294,12 @@ h1, h2, h3, p {
 
 .hero-copy {
   color: var(--accent-ink);
-  opacity: 0.75;
+  opacity: 1;
   margin-top: 8px;
-  max-width: 520px;
+  max-width: 650px;
   font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .hero-actions {
@@ -384,6 +386,16 @@ body.dark .stat-number.accent {
   color: var(--danger);
 }
 
+body.dark .punch-card {
+  background: #C6FF4B;
+}
+
+body.dark .hero-copy,
+body.dark .punch-text h2,
+body.dark .punch-body .eyebrow {
+  color: #10150D;
+  opacity: 1;
+}
 /* ---------- sections ---------- */
 
 .section-header {
