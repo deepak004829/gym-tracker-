@@ -122,6 +122,34 @@ h1, h2, h3, p {
   -webkit-touch-callout: none;
 }
 
+.workout-group{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-top:8px;
+}
+
+.workout-option{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--card);
+  cursor:pointer;
+}
+
+.workout-option input{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.workout-option span{
+  font-weight:600;
+}
+
 /* ---------- topbar ---------- */
 
 .topbar {

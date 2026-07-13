@@ -285,19 +285,55 @@
           <option value="Missed">Missed</option>
         </select>
 
-        <div id="workoutWrap">
-          <label class="field-label" for="workoutSelect">Workout type</label>
-          <select id="workoutSelect">
-            <option value="Chest">Chest</option>
-            <option value="Back">Back</option>
-            <option value="Legs">Legs</option>
-            <option value="Shoulders">Shoulders</option>
-            <option value="Arms">Arms</option>
-            <option value="Cardio">Cardio</option>
-            <option value="Custom">Custom</option>
-          </select>
-          <input id="customWorkout" class="hidden" type="text" placeholder="Enter custom workout" />
+       <div id="workoutWrap">
+        <label class="field-label">Workout Types</label>
+
+        <div id="workoutGroup" class="workout-group">
+
+          <label class="workout-option">
+            <input type="checkbox" value="Chest">
+            <span>Chest</span>
+          </label>
+
+          <label class="workout-option">
+            <input type="checkbox" value="Back">
+            <span>Back</span>
+          </label>
+
+          <label class="workout-option">
+            <input type="checkbox" value="Legs">
+            <span>Legs</span>
+          </label>
+
+          <label class="workout-option">
+            <input type="checkbox" value="Shoulders">
+            <span>Shoulders</span>
+          </label>
+
+          <label class="workout-option">
+            <input type="checkbox" value="Arms">
+            <span>Arms</span>
+          </label>
+
+          <label class="workout-option">
+            <input type="checkbox" value="Cardio">
+            <span>Cardio</span>
+          </label>
+
+          <label class="workout-option">
+            <input id="customWorkoutCheck" type="checkbox" value="Custom">
+            <span>Custom</span>
+          </label>
+
         </div>
+
+        <input
+          id="customWorkout"
+          class="hidden"
+          type="text"
+          placeholder="Enter custom workout"
+        />
+      </div>
 
         <div id="reasonWrap" class="hidden">
           <label class="field-label" for="reasonInput">Reason</label>

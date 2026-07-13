@@ -101,7 +101,6 @@ function cacheElements() {
   els.detailTitle = document.getElementById("detailTitle");
   els.detailContent = document.getElementById("detailContent");
   els.statusSelect = document.getElementById("statusSelect");
-  els.workoutSelect = document.getElementById("workoutSelect");
   els.customWorkout = document.getElementById("customWorkout");
   els.workoutWrap = document.getElementById("workoutWrap");
   els.reasonWrap = document.getElementById("reasonWrap");
@@ -157,9 +156,16 @@ function bindEvents() {
   els.saveBtn.addEventListener("click", saveEntry);
   els.cancelBtn.addEventListener("click", closeEntryModal);
   els.statusSelect.addEventListener("change", updateFormVisibility);
-  els.workoutSelect.addEventListener("change", () => {
-    els.customWorkout.classList.toggle("hidden", els.workoutSelect.value !== "Custom");
+  const customWorkoutCheck = document.getElementById("customWorkoutCheck");
+
+if (customWorkoutCheck) {
+  customWorkoutCheck.addEventListener("change", () => {
+    els.customWorkout.classList.toggle(
+      "hidden",
+      !customWorkoutCheck.checked
+    );
   });
+}
   els.closeDetailBtn.addEventListener("click", closeDetailModal);
   els.editDetailBtn.addEventListener("click", () => {
     const selectedDate = els.editDetailBtn.dataset.date;
@@ -282,47 +288,111 @@ function formatDateLabel(dateString) {
 
 /* ================= ENTRY MODAL ================= */
 
+
 function openEntryModal(defaultStatus = "Went", dateKey = getTodayKey()) {
   const entry = getEntry(dateKey);
-  els.modalTitle.textContent = entry ? `Edit ${formatDateLabel(dateKey)}` : `Log ${formatDateLabel(dateKey)}`;
-  els.statusSelect.value = entry?.status || defaultStatus;
-  els.workoutSelect.value = entry?.workoutType || "Chest";
-  els.customWorkout.value = entry?.workoutType === "Custom" ? entry.workoutName || "" : "";
-  els.reasonInput.value = entry?.reason || "";
+
+  els.modalTitle.textContent =
+    entry
+      ? `Edit ${formatDateLabel(dateKey)}`
+      : `Log ${formatDateLabel(dateKey)}`;
+
+  /* force selected button status */
+  els.statusSelect.value = defaultStatus;
+
+  document
+    .querySelectorAll('#workoutGroup input[type="checkbox"]')
+    .forEach(cb => cb.checked = false);
+
+  if (
+    entry &&
+    entry.status === defaultStatus &&
+    Array.isArray(entry.workoutType)
+  ) {
+    entry.workoutType.forEach(type => {
+      const checkbox = document.querySelector(
+        `#workoutGroup input[value="${type}"]`
+      );
+
+      if (checkbox) checkbox.checked = true;
+    });
+  }
+
+  els.customWorkout.value =
+    entry?.status === defaultStatus
+      ? entry.workoutName || ""
+      : "";
+
+  els.reasonInput.value =
+    entry?.status === defaultStatus
+      ? entry.reason || ""
+      : "";
+
   els.saveBtn.dataset.date = dateKey;
-  els.customWorkout.classList.toggle("hidden", els.workoutSelect.value !== "Custom");
+
   updateFormVisibility();
+
   els.entryModal.classList.remove("hidden");
-  els.statusSelect.focus();
 }
+
+
 
 function closeEntryModal() {
   els.entryModal.classList.add("hidden");
 }
-
 function updateFormVisibility() {
   const status = els.statusSelect.value;
-  els.workoutWrap.classList.toggle("hidden", status !== "Went");
-  els.reasonWrap.classList.toggle("hidden", status !== "Missed");
-  if (status !== "Went") {
-    els.customWorkout.classList.add("hidden");
-  }
+
+  els.workoutWrap.classList.toggle(
+    "hidden",
+    status !== "Went"
+  );
+
+  els.reasonWrap.classList.toggle(
+    "hidden",
+    status !== "Missed"
+  );
 }
 
 function saveEntry() {
   const dateKey = els.saveBtn.dataset.date || getTodayKey();
   const status = els.statusSelect.value;
-  const workoutType = els.workoutSelect.value;
-  const workoutName = workoutType === "Custom" ? els.customWorkout.value.trim() : workoutType;
+
+  const workoutTypes = [
+    ...document.querySelectorAll(
+      '#workoutGroup input[type="checkbox"]:checked'
+    )
+  ].map(cb => cb.value);
+
+  const workoutName =
+    workoutTypes.includes("Custom")
+      ? els.customWorkout.value.trim()
+      : "";
+
   const reason = els.reasonInput.value.trim();
 
-  const existingIndex = state.logs.findIndex((entry) => entry.date === dateKey);
+  if (status === "Missed" && !reason) {
+    showNotice("Please enter a reason for missing the gym.");
+    els.reasonInput.focus();
+    return;
+  }
+
+  if (status === "Went" && workoutTypes.length === 0) {
+    showNotice("Please select at least one workout type.");
+    return;
+  }
+
+  const existingIndex = state.logs.findIndex(
+    entry => entry.date === dateKey
+  );
+
   const payload = {
     date: dateKey,
     status,
-    workoutType: status === "Went" ? workoutType : "",
+    workoutType: status === "Went" ? workoutTypes : [],
     workoutName: status === "Went" ? workoutName : "",
     reason: status === "Missed" ? reason : "",
+    loggedAt: new Date().toISOString()
   };
 
   if (existingIndex >= 0) {
@@ -331,12 +401,24 @@ function saveEntry() {
     state.logs.push(payload);
   }
 
-  state.logs.sort((a, b) => a.date.localeCompare(b.date));
+  state.logs.sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+
+  document
+    .querySelectorAll('#workoutGroup input[type="checkbox"]')
+    .forEach(cb => cb.checked = false);
+
+  els.customWorkout.value = "";
+  els.reasonInput.value = "";
+
   saveState();
   render();
   closeEntryModal();
+
   showNotice("Entry saved.");
 }
+
 
 /* ================= QUICK NOTE / JOURNAL ================= */
 
@@ -413,11 +495,30 @@ function render() {
 }
 
 function renderHero() {
-  const today = new Date();
-  els.heroDate.textContent = today.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  els.heroSerial.textContent = `#TKT-${mm}${dd}`;
+  function updateClock() {
+    const now = new Date();
+
+    els.heroDate.textContent =
+      now.toLocaleDateString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "short"
+      }) +
+      " • " +
+      now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+
+    els.heroSerial.textContent = `#TKT-${mm}${dd}`;
+  }
+
+  updateClock();
+  clearInterval(window.heroClockInterval);
+  window.heroClockInterval = setInterval(updateClock, 1000);
 }
 
 function renderStats() {
@@ -530,16 +631,21 @@ function renderCalendar() {
 
 function changeMonth(delta) {
   let { year, month } = state.calendarView;
+
   month += delta;
+
   if (month < 0) {
     month = 11;
-    year -= 1;
+    year--;
   } else if (month > 11) {
     month = 0;
-    year += 1;
+    year++;
   }
+
   state.calendarView = { year, month };
+
   renderCalendar();
+  renderCharts();
 }
 
 function bindCalendarSwipe() {
@@ -611,24 +717,40 @@ function baseChartOptions(showLegend = false) {
 }
 
 function renderWeeklyChart() {
-  const labels = ["Week 1", "Week 2", "Week 3", "Week 4"];
-  const data = [0, 0, 0, 0];
-  const today = new Date();
+  const labels = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"];
+  const data = [0, 0, 0, 0, 0];
+
+  const currentMonth = state.calendarView.month;
+  const currentYear = state.calendarView.year;
+
   state.logs.forEach((entry) => {
     if (entry.status !== "Went") return;
-    const entryDate = new Date(`${entry.date}T12:00:00`);
-    const diff = Math.floor((today - entryDate) / (1000 * 60 * 60 * 24));
-    if (diff < 7) data[3] += 1;
-    else if (diff < 14) data[2] += 1;
-    else if (diff < 21) data[1] += 1;
-    else if (diff < 28) data[0] += 1;
+
+    const date = new Date(`${entry.date}T12:00:00`);
+
+    if (
+      date.getMonth() === currentMonth &&
+      date.getFullYear() === currentYear
+    ) {
+      const week = Math.ceil(date.getDate() / 7);
+      data[week - 1]++;
+    }
   });
 
   if (weeklyChart) weeklyChart.destroy();
+
   weeklyChart = new Chart(els.weeklyChart, {
     type: "bar",
-    data: { labels, datasets: [{ label: "Gym Days", data, backgroundColor: chartAccentColor(), borderRadius: 6 }] },
-    options: baseChartOptions(false),
+    data: {
+      labels,
+      datasets: [{
+        label: "Gym Days",
+        data,
+        backgroundColor: chartAccentColor(),
+        borderRadius: 6
+      }]
+    },
+    options: baseChartOptions(false)
   });
 }
 
@@ -671,42 +793,121 @@ function renderStreakChart() {
 }
 
 function renderWorkoutChart() {
-  const categories = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Cardio", "Custom"];
+  const categories = [
+    "Chest",
+    "Back",
+    "Legs",
+    "Shoulders",
+    "Arms",
+    "Cardio",
+    "Custom"
+  ];
+
   const data = Array(categories.length).fill(0);
+
   state.logs.forEach((entry) => {
     if (entry.status !== "Went") return;
-    const index = categories.indexOf(entry.workoutType || entry.workoutName || "Custom");
-    if (index >= 0) data[index] += 1;
+
+    if (Array.isArray(entry.workoutType)) {
+      entry.workoutType.forEach(type => {
+        const index = categories.indexOf(type);
+
+        if (index >= 0) {
+          data[index]++;
+        }
+      });
+    }
   });
 
-  const palette = ["#B7E834", "#7FB0E0", "#E4572E", "#F2B94A", "#9B7BD8", "#4AC0C0", "#D46FB0"];
+  const palette = [
+    "#B7E834",
+    "#7FB0E0",
+    "#E4572E",
+    "#F2B94A",
+    "#9B7BD8",
+    "#4AC0C0",
+    "#D46FB0"
+  ];
 
   if (workoutChart) workoutChart.destroy();
+
   workoutChart = new Chart(els.workoutChart, {
     type: "doughnut",
-    data: { labels: categories, datasets: [{ data, backgroundColor: palette }] },
+    data: {
+      labels: categories,
+      datasets: [{
+        data,
+        backgroundColor: palette
+      }]
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 12, font: { size: 11 } } } },
-    },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            color: chartTextColor(),
+            boxWidth: 12,
+            font: { size: 11 }
+          }
+        }
+      }
+    }
   });
 }
 
 /* ================= LISTS ================= */
+function renderRecentLogs() 
+{
+  const recent = [...state.logs]
+    .sort((a, b) => {
+      const aTime = a.loggedAt || a.date;
+      const bTime = b.loggedAt || b.date;
+      return bTime.localeCompare(aTime);
+    })
+    .slice(0, 10);
 
-function renderRecentLogs() {
-  const recent = [...state.logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
   if (!recent.length) {
-    els.recentLogs.innerHTML = '<div class="activity-item">No activity yet. Log your first workout above.</div>';
+    els.recentLogs.innerHTML =
+      '<div class="activity-item">No activity yet. Log your first workout above.</div>';
     return;
   }
+
   els.recentLogs.innerHTML = recent.map((entry) => {
+
+    const timestamp = entry.loggedAt
+      ? new Date(entry.loggedAt).toLocaleString()
+      : formatDateLabel(entry.date);
+
     let details = "";
-    if (entry.status === "Went") details = `Workout: ${entry.workoutName || entry.workoutType || "-"}`;
-    else if (entry.status === "Missed") details = `Reason: ${entry.reason || "-"}`;
-    else details = "Rest day";
-    return `<div class="activity-item"><strong>${formatDateLabel(entry.date)}</strong><br>${entry.status} · ${details}</div>`;
+
+    if (entry.status === "Went") {
+
+      const workoutText =
+        Array.isArray(entry.workoutType)
+          ? entry.workoutType.join(", ")
+          : entry.workoutType || "-";
+
+      details = `Workout: ${workoutText}`;
+
+    } else if (entry.status === "Missed") {
+
+      details = `Reason: ${entry.reason}`;
+
+    } else {
+
+      details = "Rest Day";
+
+    }
+
+    return `
+      <div class="activity-item">
+        <strong>${timestamp}</strong>
+        <br>
+        ${entry.status} · ${details}
+      </div>
+    `;
   }).join("");
 }
 
@@ -740,20 +941,31 @@ function renderGoal() {
 }
 
 /* ================= DAY DETAIL ================= */
-
 function openDayDetail(dateKey) {
   const entry = getEntry(dateKey);
+
   if (!entry) {
-    els.detailContent.innerHTML = '<p class="muted">No record for this day.</p>';
+
+    els.detailContent.innerHTML =
+      '<p class="muted">No record for this day.</p>';
+
   } else {
+
+    const workoutText =
+      Array.isArray(entry.workoutType)
+        ? entry.workoutType.join(", ")
+        : entry.workoutType || "-";
+
     els.detailContent.innerHTML = `
       <p><strong>Date:</strong> ${formatDateLabel(dateKey)}</p>
       <p><strong>Status:</strong> ${entry.status}</p>
-      <p><strong>Workout:</strong> ${entry.workoutName || entry.workoutType || "-"}</p>
+      <p><strong>Workout:</strong> ${workoutText}</p>
       <p><strong>Reason:</strong> ${entry.reason || "-"}</p>
     `;
   }
+
   els.editDetailBtn.dataset.date = dateKey;
+
   els.detailModal.classList.remove("hidden");
 }
 
