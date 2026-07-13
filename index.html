@@ -12,6 +12,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Gym Log" />
     <link rel="apple-touch-icon" href="icon-180.png" />
+    <link rel="apple-touch-startup-image" href="splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
 
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icon-192.png" type="image/png" />
@@ -22,12 +26,6 @@
 
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Cloud sync (Firebase). App works fully offline even if this is left unconfigured. -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -36,116 +34,153 @@
           <p class="eyebrow">Member since today</p>
           <h1>GYM LOG</h1>
         </div>
-        <div class="topbar-actions">
-          <button id="installBtn" class="icon-btn install-btn hidden" aria-label="Install app">
-            <span class="install-icon">⬇️</span><span class="install-label">Install</span>
-          </button>
-          <button id="syncBtn" class="icon-btn sync-btn" aria-label="Cloud sync status" data-state="off">
-            <span class="sync-icon">☁️</span>
-          </button>
-          <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
-          <button id="notifyBtn" class="icon-btn" aria-label="Enable reminders">🔔</button>
-        </div>
+        <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
       </header>
 
-      <section class="hero card punch-card">
-        <div class="punch-holes" aria-hidden="true"></div>
-        <div class="punch-body">
-          <div class="punch-text">
-            <p class="eyebrow">Today's ticket</p>
-            <h2 id="heroDate">—</h2>
-            <p class="hero-copy">Punch in when you go. Missing a day breaks the streak, not the plan.</p>
+      <!-- ================= PUNCH IN TAB ================= -->
+      <section class="tab-panel" id="panel-punch">
+        <section class="hero card punch-card">
+          <div class="punch-photo-overlay" aria-hidden="true"></div>
+          <div class="punch-top-row">
+            <p class="eyebrow light-on-photo">Today's ticket</p>
           </div>
-          <div class="hero-actions">
-            <button id="wentBtn" class="btn btn-primary">Went today</button>
-            <button id="restBtn" class="btn btn-neutral">Rest day</button>
-            <button id="missedBtn" class="btn btn-danger">Missed today</button>
+          <div class="punch-body">
+            <div class="punch-text">
+              <div class="punch-heading-row">
+                <h2 id="heroDate">—</h2>
+                <span id="heroSerial" class="serial mono">#TKT-0000</span>
+              </div>
+              <p class="hero-copy">Punch in when you go. Missing a day breaks the streak, not the plan.</p>
+            </div>
+
+            <div class="punch-divider" aria-hidden="true"></div>
+
+            <div class="hero-actions three-way">
+              <button id="wentBtn" class="punch-btn punch-went">
+                <span class="punch-icon">✅</span>
+                <span>Went</span>
+              </button>
+              <button id="restBtn" class="punch-btn punch-rest">
+                <span class="punch-icon">🛌</span>
+                <span>Rest</span>
+              </button>
+              <button id="missedBtn" class="punch-btn punch-missed">
+                <span class="punch-icon">❌</span>
+                <span>Missed</span>
+              </button>
+            </div>
+
+            <button id="quickNoteToggle" class="btn btn-ghost quick-note-toggle">📝 Add note</button>
+            <div id="quickNoteWrap" class="quick-note-wrap hidden">
+              <textarea id="quickNoteInput" rows="3" placeholder="Quick thought about today's session..."></textarea>
+              <button id="quickNoteSave" class="btn btn-primary">Save note</button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="notice hidden" id="notice" role="status" aria-live="polite"></section>
+        <section class="stats-grid stats-grid-3">
+          <article class="card stat-card">
+            <p class="stat-label">Streak</p>
+            <h3 id="currentStreak" class="stat-number accent">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Best</p>
+            <h3 id="longestStreak" class="stat-number">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Consistency</p>
+            <h3 id="consistency" class="stat-number">0%</h3>
+          </article>
+        </section>
 
-      <section class="stats-grid">
-        <article class="card stat-card">
-          <p class="stat-label">Total days</p>
-          <h3 id="totalDays" class="stat-number">0</h3>
-        </article>
-        <article class="card stat-card">
-          <p class="stat-label">Streak</p>
-          <h3 id="currentStreak" class="stat-number accent">0</h3>
-        </article>
-        <article class="card stat-card">
-          <p class="stat-label">Best streak</p>
-          <h3 id="longestStreak" class="stat-number">0</h3>
-        </article>
-        <article class="card stat-card">
-          <p class="stat-label">Consistency</p>
-          <h3 id="consistency" class="stat-number">0%</h3>
-        </article>
-        <article class="card stat-card">
-          <p class="stat-label">Missed</p>
-          <h3 id="missedDays" class="stat-number danger">0</h3>
-        </article>
-        <article class="card stat-card">
-          <p class="stat-label">Goal</p>
-          <h3 id="goalProgressText" class="stat-number">0%</h3>
-        </article>
-      </section>
+        <section class="notice hidden" id="notice" role="status" aria-live="polite"></section>
 
-      <section class="card">
-        <div class="section-header">
-          <h3>Calendar</h3>
-          <div class="month-nav">
-            <button id="prevMonthBtn" class="nav-arrow" aria-label="Previous month">‹</button>
-            <p id="calendarLabel" class="mono">Loading…</p>
-            <button id="nextMonthBtn" class="nav-arrow" aria-label="Next month">›</button>
-          </div>
-        </div>
-        <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
-        <p class="swipe-hint muted">Swipe left or right to change months</p>
-      </section>
-
-      <section class="chart-grid">
-        <article class="card chart-card">
-          <h3>Weekly progress</h3>
-          <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
-        </article>
-        <article class="card chart-card">
-          <h3>Monthly progress</h3>
-          <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
-        </article>
-        <article class="card chart-card">
-          <h3>Last 30 days</h3>
-          <div class="chart-wrap"><canvas id="streakChart"></canvas></div>
-        </article>
-        <article class="card chart-card">
-          <h3>Workout mix</h3>
-          <div class="chart-wrap"><canvas id="workoutChart"></canvas></div>
-        </article>
-      </section>
-
-      <section class="grid-two">
-        <article class="card">
+        <section class="card">
           <div class="section-header">
             <h3>Recent activity</h3>
             <p>Last 10 entries</p>
           </div>
-          <input id="journalSearch" type="search" placeholder="Search your journal — workout, reason, story…" />
           <div id="recentLogs" class="activity-list"></div>
-        </article>
+        </section>
+      </section>
 
-        <article class="card">
+      <!-- ================= CALENDAR TAB ================= -->
+      <section class="tab-panel hidden" id="panel-calendar">
+        <section class="card">
+          <div class="section-header">
+            <h3>Calendar</h3>
+            <div class="month-nav">
+              <button id="prevMonthBtn" class="nav-arrow" aria-label="Previous month">‹</button>
+              <p id="calendarLabel" class="mono">Loading…</p>
+              <button id="nextMonthBtn" class="nav-arrow" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
+          <p class="swipe-hint muted">Swipe left or right to change months</p>
+          <p class="legend-row muted">❤️ Went &nbsp; 🛌 Rest &nbsp; 😢 Missed</p>
+        </section>
+      </section>
+
+      <!-- ================= STATS TAB ================= -->
+      <section class="tab-panel hidden" id="panel-stats">
+        <section class="stats-grid">
+          <article class="card stat-card">
+            <p class="stat-label">Total days</p>
+            <h3 id="totalDays" class="stat-number">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Streak</p>
+            <h3 id="currentStreak2" class="stat-number accent">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Best streak</p>
+            <h3 id="longestStreak2" class="stat-number">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Consistency</p>
+            <h3 id="consistency2" class="stat-number">0%</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Missed</p>
+            <h3 id="missedDays" class="stat-number danger">0</h3>
+          </article>
+          <article class="card stat-card">
+            <p class="stat-label">Goal</p>
+            <h3 id="goalProgressText" class="stat-number">0%</h3>
+          </article>
+        </section>
+
+        <section class="chart-grid">
+          <article class="card chart-card">
+            <h3>Weekly progress</h3>
+            <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
+          </article>
+          <article class="card chart-card">
+            <h3>Monthly progress</h3>
+            <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+          </article>
+          <article class="card chart-card">
+            <h3>Last 30 days</h3>
+            <div class="chart-wrap"><canvas id="streakChart"></canvas></div>
+          </article>
+          <article class="card chart-card">
+            <h3>Workout mix</h3>
+            <div class="chart-wrap"><canvas id="workoutChart"></canvas></div>
+          </article>
+        </section>
+
+        <section class="card">
           <div class="section-header">
             <h3>Milestones</h3>
             <p>Stamped as you earn them</p>
           </div>
           <div id="achievements" class="achievement-list"></div>
-        </article>
+        </section>
       </section>
 
-      <section class="grid-three">
-        <article class="card">
+      <!-- ================= SETTINGS TAB ================= -->
+      <section class="tab-panel hidden" id="panel-settings">
+        <section class="card">
           <div class="section-header">
             <h3>Goal</h3>
             <p>Set your target gym days</p>
@@ -154,9 +189,9 @@
           <input id="goalInput" type="number" min="1" max="365" value="20" inputmode="numeric" />
           <div class="progress-bar"><div id="goalBar" class="progress-fill"></div></div>
           <p id="goalText" class="muted mono"></p>
-        </article>
+        </section>
 
-        <article class="card">
+        <section class="card">
           <div class="section-header">
             <h3>Export</h3>
             <p>Save your logs as CSV</p>
@@ -176,50 +211,68 @@
             </label>
           </div>
           <button id="exportRangeBtn" class="btn btn-secondary">Export range</button>
-          <div class="backup-row">
-            <button id="exportJsonBtn" class="btn btn-secondary">Full backup (.json)</button>
-            <button id="importBtn" class="btn btn-secondary">Import backup</button>
-            <input id="importFile" type="file" accept="application/json" class="hidden" />
-          </div>
-        </article>
+        </section>
 
-        <article class="card">
+        <section class="card">
           <div class="section-header">
-            <h3>Cloud sync</h3>
-            <p>Works offline, backs up when online</p>
+            <h3>Workout journal</h3>
+            <p>Write your plan, log your story</p>
           </div>
-          <div class="sync-status-row">
-            <span id="syncStatusDot" class="sync-dot" data-state="off"></span>
-            <p id="syncStatusText" class="mono">Local only — add Firebase keys to enable cloud sync</p>
+          <label class="field-label" for="journalInput">New entry</label>
+          <textarea id="journalInput" rows="4" placeholder="Today's plan: push day, 4x8 bench, then 20 min incline walk. Feeling..."></textarea>
+          <div class="modal-actions journal-actions">
+            <button id="saveJournalBtn" class="btn btn-primary">Save entry</button>
           </div>
-          <p class="muted" style="font-size:0.82rem;margin-top:8px;">
-            Every entry saves to this device instantly, online or offline. When a connection is
-            available it quietly backs up to your Firebase project too, and restores automatically
-            if you reinstall or switch devices signed into the same account.
+          <div id="journalList" class="journal-list"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-header">
+            <h3>Backup &amp; restore</h3>
+            <p id="backupStatus" class="muted mono">No signup, works offline</p>
+          </div>
+          <p class="muted cloud-copy">
+            Download a backup file any time. Move to a new phone by opening this app there, then restoring the file — your logs, journal, and goal all come back exactly as they were.
           </p>
-          <div class="secure-account">
-            <label class="field-label" for="syncEmail">Secure your data with an email (optional)</label>
-            <input id="syncEmail" type="email" placeholder="you@example.com" autocomplete="email" />
-            <input id="syncPassword" type="password" placeholder="Password (6+ characters)" autocomplete="new-password" />
-            <div class="secure-account-actions">
-              <button id="linkAccountBtn" class="btn btn-secondary">Secure this device's data</button>
-              <button id="signInAccountBtn" class="btn btn-secondary">Sign in / restore</button>
-            </div>
-            <p class="muted" style="font-size:0.78rem;">
-              "Secure" links this email to what's already synced here. "Sign in" pulls your data down
-              onto a new device or after a reinstall.
-            </p>
+          <div class="modal-actions journal-actions">
+            <button id="downloadBackupBtn" class="btn btn-primary">Download backup</button>
+            <button id="restoreBackupBtn" class="btn btn-secondary">Restore from file</button>
           </div>
-        </article>
+          <input id="restoreFileInput" type="file" accept="application/json" class="hidden" />
+        </section>
+
+        <section class="card">
+          <div class="section-header">
+            <h3>Preferences</h3>
+          </div>
+          <div class="pref-row">
+            <span>Reminder notifications</span>
+            <button id="notifyBtn" class="btn btn-secondary">Enable</button>
+          </div>
+          <div class="pref-row">
+            <span>Install app</span>
+            <button id="installBtn" class="btn btn-secondary">Install</button>
+          </div>
+        </section>
       </section>
 
       <div class="bottom-spacer" aria-hidden="true"></div>
     </div>
 
-    <nav class="mobile-bar" aria-label="Quick log">
-      <button id="wentBtnMobile" class="bar-btn bar-went">Went</button>
-      <button id="restBtnMobile" class="bar-btn bar-rest">Rest</button>
-      <button id="missedBtnMobile" class="bar-btn bar-missed">Missed</button>
+    <div id="iosInstallBanner" class="ios-banner hidden">
+      <div class="ios-banner-icon">🏋️</div>
+      <div class="ios-banner-text">
+        <strong>Install Gym Log</strong>
+        <p>Tap <span class="ios-share-icon">􀈂</span> Share, then "Add to Home Screen" — log in one tap, works offline.</p>
+      </div>
+      <button id="iosBannerClose" class="ios-banner-close" aria-label="Dismiss">✕</button>
+    </div>
+
+    <nav class="tab-bar" aria-label="Main navigation">
+      <button class="tab-btn active" data-tab="punch"><span class="tab-icon">🎟️</span><span>Punch In</span></button>
+      <button class="tab-btn" data-tab="calendar"><span class="tab-icon">📅</span><span>Calendar</span></button>
+      <button class="tab-btn" data-tab="stats"><span class="tab-icon">📊</span><span>Stats</span></button>
+      <button class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>Settings</span></button>
     </nav>
 
     <div id="entryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -251,9 +304,6 @@
           <input id="reasonInput" type="text" placeholder="Felt tired, schedule conflict..." />
         </div>
 
-        <label class="field-label" for="storyInput">Your story</label>
-        <textarea id="storyInput" rows="4" placeholder="What did you do, how did it feel, anything worth remembering about today?"></textarea>
-
         <div class="modal-actions">
           <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
           <button id="saveBtn" class="btn btn-primary">Save</button>
@@ -264,7 +314,7 @@
     <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
       <div class="modal-card">
         <h3 id="detailTitle">Day details</h3>
-        <div id="detailContent" class="detail-content"></div>
+        <div id="detailContent"></div>
         <div class="modal-actions">
           <button id="closeDetailBtn" class="btn btn-secondary">Close</button>
           <button id="editDetailBtn" class="btn btn-primary">Edit</button>
