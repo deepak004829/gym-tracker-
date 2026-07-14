@@ -1,7 +1,7 @@
 {
   "name": "Gym Tracker",
   "short_name": "Gym Log",
-  "description": "A daily gym habit tracker with streaks, goals, and offline logging",
+  "description": "A focused personal gym tracker for plans, check-ins, and training insights.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

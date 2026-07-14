@@ -1,4 +1,4 @@
-const CACHE_NAME = "gym-tracker-v9";
+const CACHE_NAME = "gym-log-v11";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,9 +10,7 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./icon-512-maskable.png",
-  "./splash-750x1334.png",
   "./splash-1170x2532.png",
-  "./splash-1179x2556.png",
   "./splash-1284x2778.png",
   "./hero-dark.jpg",
   "./hero-light.jpg",

@@ -1,450 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
-    <meta name="theme-color" content="#0D110A" />
-    <meta name="description" content="A daily gym habit tracker you can install on your phone" />
-    <title>Gym Tracker</title>
-
-    <!-- iOS install support -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Gym Log" />
-    <link rel="apple-touch-icon" href="icon-180.png" />
-    <link rel="apple-touch-startup-image" href="splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
-    <link rel="apple-touch-startup-image" href="splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
-    <link rel="apple-touch-startup-image" href="splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
-    <link rel="apple-touch-startup-image" href="splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
-
-    <link rel="manifest" href="manifest.json" />
-    <link rel="icon" href="icon-192.png" type="image/png" />
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-
-    <!-- Cloud sync (Firebase). App works fully offline even if this is left unconfigured. -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-    <script src="firebase-config.js" defer></script>
-  </head>
-  <body>
-    <div id="authGate" class="auth-gate">
-      <div class="auth-backdrop" aria-hidden="true">
-        <div class="auth-blob blob-a"></div>
-        <div class="auth-blob blob-b"></div>
-      </div>
-
-      <div class="auth-card glass" id="authCard">
-        <div class="auth-mark" aria-hidden="true">🏋️</div>
-        <h1 class="auth-title">GYM LOG</h1>
-        <p class="auth-sub" id="authSubcopy">Sign in to sync your streak everywhere.</p>
-
-        <div class="auth-switch" role="tablist">
-          <button id="authTabSignin" class="auth-switch-btn active" role="tab" aria-selected="true">Sign in</button>
-          <button id="authTabSignup" class="auth-switch-btn" role="tab" aria-selected="false">Sign up</button>
-        </div>
-
-        <form id="authForm" class="auth-form" autocomplete="on">
-          <label class="field-label" for="authEmail">Email</label>
-          <input id="authEmail" class="glass-input" type="email" placeholder="you@example.com" autocomplete="email" required />
-
-          <label class="field-label" for="authPassword">Password</label>
-          <input id="authPassword" class="glass-input" type="password" placeholder="6+ characters" autocomplete="current-password" minlength="6" required />
-
-          <label class="field-label hidden" id="authConfirmLabel" for="authPasswordConfirm">Confirm password</label>
-          <input id="authPasswordConfirm" class="glass-input hidden" type="password" placeholder="Confirm password" autocomplete="new-password" minlength="6" />
-
-          <p id="authError" class="auth-error hidden" role="alert"></p>
-
-          <button id="authSubmitBtn" type="submit" class="btn btn-primary auth-submit">Sign in</button>
-        </form>
-
-        <div class="auth-divider"><span>or</span></div>
-
-        <button id="authGuestBtn" class="btn btn-ghost auth-guest-btn">Continue as guest</button>
-        <p class="auth-guest-note">Guests can look around, but logging days, journaling, and backups need an account.</p>
-      </div>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10130f"><meta name="description" content="A private, focused gym tracker.">
+  <title>Gym Log</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="styles.css"><script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script><script src="firebase-config.js" defer></script>
+</head>
+<body>
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <img src="icon-192.png" class="auth-icon" alt=""><p class="eyebrow">GYM LOG</p><h1>Build a habit<br>you can trust.</h1><p class="auth-copy" id="authSubcopy">Sign in to keep your workouts in sync.</p>
+      <div class="auth-switch"><button id="authTabSignin" class="active" type="button">Sign in</button><button id="authTabSignup" type="button">Create account</button></div>
+      <form id="authForm"><label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" placeholder="6+ characters" minlength="6" required></label><label id="authConfirmLabel" class="hidden">Confirm password<input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" minlength="6"></label><p id="authError" class="form-error hidden" role="alert"></p><button id="authSubmitBtn" class="button primary" type="submit">Sign in</button></form>
+      <button id="authForgotBtn" class="text-button" type="button">Forgot password?</button><div class="or">or</div><button id="authGuestBtn" class="button secondary" type="button">Skip for now</button><p class="fine-print">Preview is view-only. Create an account to save.</p>
     </div>
-
-    <div class="app-shell hidden" id="appShell">
-      <header class="topbar">
-        <div class="brand">
-          <p class="eyebrow" id="accountEyebrow">Member since today</p>
-          <h1>GYM LOG</h1>
-        </div>
-        <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
-      </header>
-
-      <div id="guestBanner" class="guest-banner glass hidden">
-        <span>👀 Browsing as guest — your changes won't be saved.</span>
-        <button id="guestSignUpBtn" class="btn btn-primary guest-banner-btn">Create account</button>
-      </div>
-
-      <!-- ================= PUNCH IN TAB ================= -->
-      <section class="tab-panel" id="panel-punch">
-        <section class="hero card punch-card">
-          <div class="punch-photo-overlay" aria-hidden="true"></div>
-          <div class="punch-top-row">
-            <p class="eyebrow light-on-photo">Today's ticket</p>
-          </div>
-          <div class="punch-body">
-            <div class="punch-text">
-              <div class="punch-heading-row">
-                <h2 id="heroDate">—</h2>
-                <span id="heroSerial" class="serial mono">#TKT-0000</span>
-              </div>
-              <p class="hero-copy">Punch in when you go. Missing a day breaks the streak, not the plan.</p>
-            </div>
-
-            <div class="punch-divider" aria-hidden="true"></div>
-
-            <div class="hero-actions three-way">
-              <button id="wentBtn" class="punch-btn punch-went">
-                <span class="punch-icon">✅</span>
-                <span>Went</span>
-              </button>
-              <button id="restBtn" class="punch-btn punch-rest">
-                <span class="punch-icon">🛌</span>
-                <span>Rest</span>
-              </button>
-              <button id="missedBtn" class="punch-btn punch-missed">
-                <span class="punch-icon">❌</span>
-                <span>Missed</span>
-              </button>
-            </div>
-
-            <button id="quickNoteToggle" class="btn btn-ghost quick-note-toggle">📝 Add note</button>
-            <div id="quickNoteWrap" class="quick-note-wrap hidden">
-              <textarea id="quickNoteInput" rows="3" placeholder="Quick thought about today's session..."></textarea>
-              <button id="quickNoteSave" class="btn btn-primary">Save note</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="stats-grid stats-grid-3">
-          <article class="card stat-card">
-            <p class="stat-label">Streak</p>
-            <h3 id="currentStreak" class="stat-number accent">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Best</p>
-            <h3 id="longestStreak" class="stat-number">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Consistency</p>
-            <h3 id="consistency" class="stat-number">0%</h3>
-          </article>
-        </section>
-
-        <section class="notice hidden" id="notice" role="status" aria-live="polite"></section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Recent activity</h3>
-            <p>Last 10 entries</p>
-          </div>
-          <div id="recentLogs" class="activity-list"></div>
-        </section>
-      </section>
-
-      <!-- ================= CALENDAR TAB ================= -->
-      <section class="tab-panel hidden" id="panel-calendar">
-        <section class="card">
-          <div class="section-header">
-            <h3>Calendar</h3>
-            <div class="month-nav">
-              <button id="prevMonthBtn" class="nav-arrow" aria-label="Previous month">‹</button>
-              <p id="calendarLabel" class="mono">Loading…</p>
-              <button id="nextMonthBtn" class="nav-arrow" aria-label="Next month">›</button>
-            </div>
-          </div>
-          <div id="calendar" class="calendar" aria-label="Monthly calendar"></div>
-          <p class="swipe-hint muted">Swipe left or right to change months</p>
-          <p class="legend-row muted">❤️ Went &nbsp; 🛌 Rest &nbsp; 😢 Missed</p>
-        </section>
-      </section>
-
-      <!-- ================= STATS TAB ================= -->
-      <section class="tab-panel hidden" id="panel-stats">
-        <section class="stats-grid">
-          <article class="card stat-card">
-            <p class="stat-label">Total days</p>
-            <h3 id="totalDays" class="stat-number">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Streak</p>
-            <h3 id="currentStreak2" class="stat-number accent">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Best streak</p>
-            <h3 id="longestStreak2" class="stat-number">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Consistency</p>
-            <h3 id="consistency2" class="stat-number">0%</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Missed</p>
-            <h3 id="missedDays" class="stat-number danger">0</h3>
-          </article>
-          <article class="card stat-card">
-            <p class="stat-label">Goal</p>
-            <h3 id="goalProgressText" class="stat-number">0%</h3>
-          </article>
-        </section>
-
-        <section class="chart-grid">
-          <article class="card chart-card">
-            <h3>Weekly progress</h3>
-            <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
-          </article>
-          <article class="card chart-card">
-            <h3>Monthly progress</h3>
-            <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
-          </article>
-          <article class="card chart-card">
-            <h3>Workout mix</h3>
-            <div class="chart-wrap"><canvas id="workoutChart"></canvas></div>
-          </article>
-        </section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Milestones</h3>
-            <p>Stamped as you earn them</p>
-          </div>
-          <div id="achievements" class="achievement-list"></div>
-        </section>
-      </section>
-
-      <!-- ================= SETTINGS TAB ================= -->
-      <section class="tab-panel hidden" id="panel-settings">
-<section class="card">
-
-  <div class="section-header">
-    <h3>GOAL</h3>
-    <p>Set your target gym days</p>
   </div>
 
-  <label class="field-label" for="goalInput">
-    Target Days
-  </label>
+  <main id="appShell" class="app-shell hidden">
+    <header class="topbar"><div><p class="eyebrow" id="accountEyebrow">YOUR TRAINING</p><h1>Gym Log</h1></div><button id="themeToggle" class="icon-button" aria-label="Change theme">◐</button></header>
+    <div id="guestBanner" class="guest-banner hidden"><span>Preview mode — your changes will not be saved.</span><button id="guestSignUpBtn" type="button">Create account</button></div><div id="notice" class="notice hidden" role="status"></div>
 
-  <input
-    id="goalInput"
-    type="number"
-    min="1"
-    max="365"
-    placeholder="Enter goal"
-    inputmode="numeric"
-  />
+    <section id="panel-punch" class="screen">
+      <section class="hero-card"><div class="hero-content"><p class="eyebrow inverse">TODAY</p><div class="hero-title"><h2 id="heroDate">—</h2><span id="heroStatus" class="status-pill">Not logged</span></div><p id="heroSummary">One small check-in is enough.</p><div class="streak-line"><span class="flame">✦</span><strong id="heroStreak">0 day streak</strong><span>Keep the rhythm.</span></div></div><div class="punch-actions"><button id="wentBtn" class="punch-action went" type="button"><b>✓</b>Went</button><button id="restBtn" class="punch-action rest" type="button"><b>−</b>Rest</button><button id="missedBtn" class="punch-action missed" type="button"><b>×</b>Missed</button></div></section>
+      <section class="quick-note"><button id="quickNoteToggle" class="section-button" type="button"><span>✎</span> Add a quick note <i>+</i></button><div id="quickNoteWrap" class="quick-note-form hidden"><textarea id="quickNoteInput" rows="3" placeholder="How did today feel?"></textarea><button id="quickNoteSave" class="button primary" type="button">Save note</button></div></section>
+      <section class="content-section"><div class="section-heading"><div><p class="eyebrow">RECENT</p><h2>Activity</h2></div></div><div id="recentLogs" class="activity-list"></div></section>
+      <section class="content-section calendar-section"><div class="section-heading"><div><p class="eyebrow">YOUR MONTH</p><h2 id="calendarLabel">—</h2></div><div class="month-controls"><button id="prevMonthBtn" type="button" aria-label="Previous month">‹</button><button id="nextMonthBtn" type="button" aria-label="Next month">›</button></div></div><div id="calendar" class="calendar" aria-label="Monthly calendar"></div><div class="calendar-legend"><span><i class="went-dot"></i>Went</span><span><i class="rest-dot"></i>Rest</span><span><i class="missed-dot"></i>Missed</span></div></section>
+    </section>
 
-  <button
-    id="saveGoalBtn"
-    class="btn btn-primary"
-    style="margin-top:12px;"
-  >
-    Save Goal
-  </button>
+    <section id="panel-plan-log" class="screen hidden">
+      <div class="screen-title"><p class="eyebrow">PERSONAL NOTEBOOK</p><h2>Plan &amp; Log</h2><p>Everything you need for a thoughtful session.</p></div>
+      <section class="notebook-card"><div class="section-heading"><h3>Today’s workout plan</h3><span id="planDate" class="muted"></span></div><input id="planTitle" class="plan-title" placeholder="e.g. Lower body strength"><textarea id="planFocus" rows="2" placeholder="Focus, intention, or warm-up…"></textarea><button id="savePlanBtn" class="button secondary" type="button">Save today’s plan</button></section>
+      <section class="notebook-card"><div class="section-heading"><h3>Exercise log</h3><button id="addExerciseBtn" class="text-button" type="button">+ Add exercise</button></div><div id="exerciseList" class="exercise-list"></div><p id="emptyExercises" class="empty-copy">Add exercises as you move through your workout.</p></section>
+      <section class="notebook-card"><div class="section-heading"><h3>Workout notes</h3></div><textarea id="workoutNotes" rows="4" placeholder="Wins, cues, energy, recovery…"></textarea><button id="saveWorkoutNotesBtn" class="button secondary" type="button">Save workout notes</button></section>
+      <section class="content-section"><div class="section-heading"><div><p class="eyebrow">REFLECTIONS</p><h3>Journal timeline</h3></div></div><div id="journalList" class="journal-list"></div></section>
+    </section>
 
-  <div class="progress-bar" style="margin-top:16px;">
-    <div id="goalBar" class="progress-fill"></div>
-  </div>
+    <section id="panel-analytics" class="screen hidden">
+      <div class="screen-title"><p class="eyebrow">THE SIGNAL, NOT THE NOISE</p><h2>Analytics</h2><p>Your training at a glance.</p></div>
+      <div class="metric-grid"><article><span>Current streak</span><strong id="currentStreak">0</strong><small>days</small></article><article><span>Best streak</span><strong id="longestStreak">0</strong><small>days</small></article><article><span>Consistency</span><strong id="consistency">0%</strong><small>this month</small></article><article><span>Total gym days</span><strong id="totalDays">0</strong><small>all time</small></article></div>
+      <section class="chart-card"><div class="section-heading"><h3>Monthly progress</h3><span class="muted">Gym days</span></div><div class="chart-wrap"><canvas id="monthlyChart"></canvas></div></section><section class="chart-card"><div class="section-heading"><h3>Workout mix</h3><span class="muted">By focus</span></div><div class="chart-wrap"><canvas id="workoutChart"></canvas></div></section>
+      <section class="insight-card"><div class="insight-mark">✦</div><div><p class="eyebrow">FUTURE AI INSIGHTS</p><h3 id="insightTitle">Your training pattern is forming.</h3><p id="insightText">Log a few workouts and Gym Log will surface meaningful trends—not noise.</p></div></section>
+    </section>
 
-  <p id="goalText" class="muted mono"></p>
+    <section id="panel-settings" class="screen hidden"><div class="screen-title"><p class="eyebrow">PREFERENCES</p><h2>Settings</h2></div>
+      <p class="settings-label">ACCOUNT</p><section class="settings-group"><div class="settings-row account-row"><div class="avatar" id="accountAvatar">G</div><div><strong id="accountEmailLine">—</strong><span id="accountSubStatus">—</span></div></div><div class="settings-row"><span>Firebase sync</span><span id="syncStatusText" class="sync-state">Connecting…</span></div><button id="signOutBtn" class="settings-row danger-row" type="button">Sign out</button></section>
+      <p class="settings-label">THEME</p><section class="settings-group"><div class="theme-choice" role="group" aria-label="Theme"><button id="themeSystemBtn" data-theme="system" type="button">System</button><button id="themeLightBtn" data-theme="light" type="button">Light</button><button id="themeDarkBtn" data-theme="dark" type="button">Dark</button></div></section>
+      <p class="settings-label">GYM GOAL</p><section class="settings-group goal-group"><label>Target days per month<input id="goalInput" type="number" min="1" max="31" inputmode="numeric"></label><button id="saveGoalBtn" class="button primary" type="button">Save goal</button><p id="goalText" class="muted"></p><div class="goal-track"><div id="goalBar"></div></div></section>
+      <p class="settings-label">REMINDERS</p><section class="settings-group"><div class="settings-row"><div><strong>Daily workout reminder</strong><span>Check in at 8:00 PM</span></div><label class="switch"><input id="reminderToggle" type="checkbox"><span></span></label></div></section>
+      <p class="settings-label">EXPORT</p><section class="settings-group"><button id="exportAllBtn" class="settings-row" type="button">Export CSV <span>›</span></button></section>
+      <p class="settings-label">ABOUT</p><section class="settings-group"><div class="settings-row"><span>App version</span><span>2.0.0</span></div><div class="settings-row"><span>Data</span><span id="aboutSyncStatus">Firebase synced</span></div></section>
+    </section>
+  </main>
 
-</section>
-        <section class="card">
-          <div class="section-header">
-            <h3>Export</h3>
-            <p>Save your logs as CSV</p>
-          </div>
-          <div class="export-actions">
-            <button id="exportAllBtn" class="btn btn-secondary">Export all</button>
-            <button id="exportMonthBtn" class="btn btn-secondary">Export month</button>
-          </div>
-          <div class="range-row">
-            <label>
-              <span>From</span>
-              <input id="rangeStart" type="date" />
-            </label>
-            <label>
-              <span>To</span>
-              <input id="rangeEnd" type="date" />
-            </label>
-          </div>
-          <button id="exportRangeBtn" class="btn btn-secondary">Export range</button>
-        </section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Workout journal</h3>
-            <p>Write your plan, log your story</p>
-          </div>
-          <label class="field-label" for="journalInput">New entry</label>
-          <textarea id="journalInput" rows="4" placeholder="Today's plan: push day, 4x8 bench, then 20 min incline walk. Feeling..."></textarea>
-          <div class="modal-actions journal-actions">
-            <button id="saveJournalBtn" class="btn btn-primary">Save entry</button>
-          </div>
-          <div id="journalList" class="journal-list"></div>
-        </section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Account &amp; cloud sync</h3>
-            <p id="accountEmailLine">Auto backup, works offline too</p>
-          </div>
-          <div class="sync-status-row">
-            <span id="syncStatusDot" class="sync-dot" data-state="off"></span>
-            <p id="syncStatusText" class="mono">Connecting…</p>
-          </div>
-          <p class="muted cloud-copy" id="cloudCopy">
-            Every entry saves to this phone instantly, online or offline. When a connection is
-            available it quietly backs up to the cloud too, so a lost phone or a reinstall
-            doesn't mean lost data.
-          </p>
-          <button id="signOutBtn" class="btn btn-secondary hidden">Sign out</button>
-        </section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Backup &amp; restore</h3>
-            <p id="backupStatus" class="muted mono">No signup, works offline</p>
-          </div>
-          <p class="muted cloud-copy">
-            Download a backup file any time. Move to a new phone by opening this app there, then restoring the file — your logs, journal, and goal all come back exactly as they were.
-          </p>
-          <div class="modal-actions journal-actions">
-            <button id="downloadBackupBtn" class="btn btn-primary">Download backup</button>
-            <button id="restoreBackupBtn" class="btn btn-secondary">Restore from file</button>
-          </div>
-          <input id="restoreFileInput" type="file" accept="application/json" class="hidden" />
-        </section>
-
-        <section class="card">
-          <div class="section-header">
-            <h3>Preferences</h3>
-          </div>
-          <div class="pref-row">
-            <span>Reminder notifications</span>
-            <button id="notifyBtn" class="btn btn-secondary">Enable</button>
-          </div>
-          <div class="pref-row">
-            <span>Install app</span>
-            <button id="installBtn" class="btn btn-secondary">Install</button>
-          </div>
-        </section>
-      </section>
-
-      <div class="bottom-spacer" aria-hidden="true"></div>
-    </div>
-
-    <div id="iosInstallBanner" class="ios-banner hidden">
-      <div class="ios-banner-icon">🏋️</div>
-      <div class="ios-banner-text">
-        <strong>Install Gym Log</strong>
-        <p>Tap <span class="ios-share-icon">􀈂</span> Share, then "Add to Home Screen" — log in one tap, works offline.</p>
-      </div>
-      <button id="iosBannerClose" class="ios-banner-close" aria-label="Dismiss">✕</button>
-    </div>
-
-    <nav class="tab-bar hidden" id="tabBar" aria-label="Main navigation">
-      <button class="tab-btn active" data-tab="punch"><span class="tab-icon">🎟️</span><span>Punch In</span></button>
-      <button class="tab-btn" data-tab="calendar"><span class="tab-icon">📅</span><span>Calendar</span></button>
-      <button class="tab-btn" data-tab="stats"><span class="tab-icon">📊</span><span>Stats</span></button>
-      <button class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>Settings</span></button>
-    </nav>
-
-    <div id="entryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-card">
-        <h3 id="modalTitle">Log today</h3>
-        <label class="field-label" for="statusSelect">Status</label>
-        <select id="statusSelect">
-          <option value="Went">Went</option>
-          <option value="Rest">Rest day</option>
-          <option value="Missed">Missed</option>
-        </select>
-
-       <div id="workoutWrap">
-        <label class="field-label">Workout Types</label>
-
-        <div id="workoutGroup" class="workout-group">
-
-          <label class="workout-option">
-            <input type="checkbox" value="Chest">
-            <span>Chest</span>
-          </label>
-
-          <label class="workout-option">
-            <input type="checkbox" value="Back">
-            <span>Back</span>
-          </label>
-
-          <label class="workout-option">
-            <input type="checkbox" value="Legs">
-            <span>Legs</span>
-          </label>
-
-          <label class="workout-option">
-            <input type="checkbox" value="Shoulders">
-            <span>Shoulders</span>
-          </label>
-
-          <label class="workout-option">
-            <input type="checkbox" value="Arms">
-            <span>Arms</span>
-          </label>
-
-          <label class="workout-option">
-            <input type="checkbox" value="Cardio">
-            <span>Cardio</span>
-          </label>
-
-          <label class="workout-option">
-            <input id="customWorkoutCheck" type="checkbox" value="Custom">
-            <span>Custom</span>
-          </label>
-
-        </div>
-
-        <input
-          id="customWorkout"
-          class="hidden"
-          type="text"
-          placeholder="Enter custom workout"
-        />
-      </div>
-
-        <div id="reasonWrap" class="hidden">
-          <label class="field-label" for="reasonInput">Reason</label>
-          <input id="reasonInput" type="text" placeholder="Felt tired, schedule conflict..." />
-        </div>
-
-        <div class="modal-actions">
-          <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
-          <button id="saveBtn" class="btn btn-primary">Save</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-      <div class="modal-card">
-        <h3 id="detailTitle">Day details</h3>
-        <div id="detailContent"></div>
-        <div class="modal-actions">
-          <button id="closeDetailBtn" class="btn btn-secondary">Close</button>
-          <button id="editDetailBtn" class="btn btn-primary">Edit</button>
-        </div>
-      </div>
-    </div>
-
-    <script src="app.js" defer></script>
-  </body>
-</html>
+  <nav id="tabBar" class="tab-bar hidden" aria-label="Main navigation"><button class="active" data-tab="punch" type="button"><b>◫</b><span>Punch In</span></button><button data-tab="plan-log" type="button"><b>✎</b><span>Plan &amp; Log</span></button><button data-tab="analytics" type="button"><b>▥</b><span>Analytics</span></button><button data-tab="settings" type="button"><b>⚙</b><span>Settings</span></button></nav>
+  <div id="entryModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><button id="closeEntryBtn" class="close" type="button">×</button><p class="eyebrow">DAILY CHECK-IN</p><h2 id="modalTitle">Log today</h2><label>Status<select id="statusSelect"><option value="Went">Went</option><option value="Rest">Rest day</option><option value="Missed">Missed</option></select></label><div id="workoutWrap"><label>Workout focus</label><div id="workoutGroup" class="tag-grid"><label><input type="checkbox" value="Chest">Chest</label><label><input type="checkbox" value="Back">Back</label><label><input type="checkbox" value="Legs">Legs</label><label><input type="checkbox" value="Shoulders">Shoulders</label><label><input type="checkbox" value="Arms">Arms</label><label><input type="checkbox" value="Cardio">Cardio</label></div></div><label id="reasonWrap" class="hidden">What got in the way?<input id="reasonInput" placeholder="Optional"></label><div class="modal-actions"><button id="cancelBtn" class="button secondary" type="button">Cancel</button><button id="saveBtn" class="button primary" type="button">Save check-in</button></div></div></div>
+  <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><button id="closeDetailBtn" class="close" type="button">×</button><p class="eyebrow">DAILY RECORD</p><h2 id="detailTitle">Day details</h2><div id="detailContent"></div><div class="modal-actions"><button id="editDetailBtn" class="button primary" type="button">Edit entry</button></div></div></div>
+  <script src="app.js" defer></script>
+</body></html>
