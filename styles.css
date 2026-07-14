@@ -791,6 +791,61 @@ textarea {
   margin-bottom: 12px;
 }
 
+.sync-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--muted);
+}
+
+.sync-dot[data-state="online"] {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.sync-dot[data-state="syncing"] {
+  background: #F2B94A;
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+
+.sync-dot[data-state="offline"],
+.sync-dot[data-state="error"] {
+  background: var(--danger);
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.secure-account {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.secure-account-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.secure-account-actions .btn {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+}
+
 .pref-row {
   display: flex;
   justify-content: space-between;
@@ -1012,5 +1067,260 @@ textarea {
 @media (min-width: 900px) {
   .app-shell {
     max-width: 960px;
+  }
+}
+
+/* ================= LIQUID GLASS ================= */
+/* A shared frosted-glass surface used for the auth gate, the guest banner,
+   and (lightly) the punch-in hero. Built from the app's own acid-green /
+   dark-olive palette rather than a generic white-glass look. */
+
+.glass {
+  position: relative;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+body.dark .glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.glass-input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: var(--muted);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ---------- Auth gate ---------- */
+
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  animation: drift 16s ease-in-out infinite alternate;
+}
+
+.blob-a {
+  width: 60vw;
+  height: 60vw;
+  max-width: 480px;
+  max-height: 480px;
+  top: -10%;
+  left: -15%;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+}
+
+.blob-b {
+  width: 50vw;
+  height: 50vw;
+  max-width: 420px;
+  max-height: 420px;
+  bottom: -15%;
+  right: -10%;
+  background: radial-gradient(circle, var(--rest), transparent 70%);
+  animation-delay: -8s;
+}
+
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(6%, 8%) scale(1.08); }
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  border-radius: var(--radius-lg);
+  padding: 32px 26px 26px;
+  text-align: center;
+}
+
+.auth-mark {
+  font-size: 2rem;
+  margin-bottom: 6px;
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  font-size: 2rem;
+  margin: 0 0 6px;
+}
+
+.auth-sub {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 20px;
+}
+
+.auth-switch {
+  display: flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin-bottom: 20px;
+}
+
+.auth-switch-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 9px 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.auth-switch-btn.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.auth-form {
+  text-align: left;
+}
+
+.auth-form .field-label {
+  font-size: 0.75rem;
+}
+
+.auth-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  margin: -4px 0 12px;
+  text-align: left;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 20px 0 14px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-guest-btn {
+  width: 100%;
+}
+
+.auth-guest-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin: 10px 0 0;
+  line-height: 1.4;
+}
+
+/* ---------- Guest banner ---------- */
+
+.guest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  margin: 0 16px 12px;
+}
+
+.guest-banner-btn {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  font-size: 0.78rem;
+}
+
+.guest-banner.shake {
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@media (max-width: 420px) {
+  .guest-banner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
 }

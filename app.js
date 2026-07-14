@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   iosBannerDismissed: "gym-tracker-ios-banner-dismissed",
   journal: "gym-tracker-journal",
   updatedAt: "gym-tracker-updated-at",
+  guestMode: "gym-tracker-guest-mode",
 };
 
 const state = {
@@ -17,6 +18,19 @@ const state = {
   installPrompt: null,
   calendarView: { year: new Date().getFullYear(), month: new Date().getMonth() },
   activeTab: "punch",
+  auth: {
+    user: null,
+    isGuest: false,
+    mode: "signin",
+  },
+  cloud: {
+    db: null,
+    uid: null,
+    docRef: null,
+    unsub: null,
+    pushTimer: null,
+    initialSyncDone: false,
+  },
 };
 
 let weeklyChart;
@@ -29,11 +43,26 @@ function init() {
   cacheElements();
   loadState();
   bindEvents();
-  render();
-  registerServiceWorker();
-  prepareInstallUi();
-  warmReminder();
-  maybeShowIosInstallBanner();
+  bindAuthEvents();
+
+  // The sign-in/guest gate is the critical path — it must come up even if
+  // something unrelated below throws (service worker registration, install
+  // prompt detection, etc). Each of those runs isolated so one failing
+  // doesn't take the whole app down with it.
+  startAuthFlow();
+
+  safeRun(registerServiceWorker);
+  safeRun(prepareInstallUi);
+  safeRun(warmReminder);
+  safeRun(maybeShowIosInstallBanner);
+}
+
+function safeRun(fn) {
+  try {
+    fn();
+  } catch (error) {
+    console.warn(`${fn.name || "init step"} failed`, error);
+  }
 }
 
 function cacheElements() {
@@ -93,6 +122,29 @@ function cacheElements() {
   els.restoreBackupBtn = document.getElementById("restoreBackupBtn");
   els.restoreFileInput = document.getElementById("restoreFileInput");
   els.backupStatus = document.getElementById("backupStatus");
+  els.syncStatusDot = document.getElementById("syncStatusDot");
+  els.syncStatusText = document.getElementById("syncStatusText");
+  els.accountEmailLine = document.getElementById("accountEmailLine");
+  els.signOutBtn = document.getElementById("signOutBtn");
+  els.accountEyebrow = document.getElementById("accountEyebrow");
+
+  els.appShell = document.getElementById("appShell");
+  els.tabBar = document.getElementById("tabBar");
+  els.guestBanner = document.getElementById("guestBanner");
+  els.guestSignUpBtn = document.getElementById("guestSignUpBtn");
+
+  els.authGate = document.getElementById("authGate");
+  els.authSubcopy = document.getElementById("authSubcopy");
+  els.authTabSignin = document.getElementById("authTabSignin");
+  els.authTabSignup = document.getElementById("authTabSignup");
+  els.authForm = document.getElementById("authForm");
+  els.authEmail = document.getElementById("authEmail");
+  els.authPassword = document.getElementById("authPassword");
+  els.authPasswordConfirm = document.getElementById("authPasswordConfirm");
+  els.authConfirmLabel = document.getElementById("authConfirmLabel");
+  els.authError = document.getElementById("authError");
+  els.authSubmitBtn = document.getElementById("authSubmitBtn");
+  els.authGuestBtn = document.getElementById("authGuestBtn");
 
   els.entryModal = document.getElementById("entryModal");
   els.detailModal = document.getElementById("detailModal");
@@ -162,6 +214,11 @@ function bindEvents() {
   els.downloadBackupBtn.addEventListener("click", downloadBackup);
   els.restoreBackupBtn.addEventListener("click", () => els.restoreFileInput.click());
   els.restoreFileInput.addEventListener("change", handleRestoreFile);
+  els.signOutBtn.addEventListener("click", exitToGate);
+  els.guestSignUpBtn.addEventListener("click", () => {
+    setAuthMode("signup");
+    showAuthGate();
+  });
 
   els.saveBtn.addEventListener("click", saveEntry);
   els.cancelBtn.addEventListener("click", closeEntryModal);
@@ -258,14 +315,20 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(state.logs));
-  localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify(state.journal));
-  localStorage.setItem(STORAGE_KEYS.theme, state.theme);
-  localStorage.setItem(STORAGE_KEYS.goal, String(state.goalTarget));
-  localStorage.setItem(STORAGE_KEYS.updatedAt, String(Date.now()));
-  if (state.reminderDate) {
-    localStorage.setItem(STORAGE_KEYS.reminder, state.reminderDate);
+  try {
+    localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(state.logs));
+    localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify(state.journal));
+    localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+    localStorage.setItem(STORAGE_KEYS.goal, String(state.goalTarget));
+    localStorage.setItem(STORAGE_KEYS.updatedAt, String(Date.now()));
+    if (state.reminderDate) {
+      localStorage.setItem(STORAGE_KEYS.reminder, state.reminderDate);
+    }
+  } catch (error) {
+    console.warn("Unable to save locally", error);
+    showNotice("Couldn't save on this device — storage may be full or private browsing is blocking it.");
   }
+  queueCloudSync();
 }
 
 function applyTheme() {
@@ -282,6 +345,7 @@ function toggleTheme() {
   render();
 }
 function saveGoal() {
+  if (guardGuest("set a goal")) return;
 
   const target = Number(els.goalInput.value);
 
@@ -331,6 +395,7 @@ function formatDateLabel(dateString) {
 
 
 function openEntryModal(defaultStatus = "Went", dateKey = getTodayKey()) {
+  if (guardGuest("log a day")) return;
   const entry = getEntry(dateKey);
 
   els.modalTitle.textContent =
@@ -396,6 +461,7 @@ function updateFormVisibility() {
 }
 
 function saveEntry() {
+  if (guardGuest("save today's entry")) return;
   const dateKey = els.saveBtn.dataset.date || getTodayKey();
   const status = els.statusSelect.value;
 
@@ -433,7 +499,8 @@ function saveEntry() {
     workoutType: status === "Went" ? workoutTypes : [],
     workoutName: status === "Went" ? workoutName : "",
     reason: status === "Missed" ? reason : "",
-    loggedAt: new Date().toISOString()
+    loggedAt: new Date().toISOString(),
+    updatedAt: Date.now(),
   };
 
   if (existingIndex >= 0) {
@@ -464,6 +531,7 @@ function saveEntry() {
 /* ================= QUICK NOTE / JOURNAL ================= */
 
 function saveQuickNote() {
+  if (guardGuest("save a note")) return;
   const text = els.quickNoteInput.value.trim();
   if (!text) return;
   addJournalEntry(text);
@@ -473,6 +541,7 @@ function saveQuickNote() {
 }
 
 function saveJournalEntry() {
+  if (guardGuest("keep a journal")) return;
   const text = els.journalInput.value.trim();
   if (!text) return;
   addJournalEntry(text);
@@ -686,7 +755,7 @@ function changeMonth(delta) {
   state.calendarView = { year, month };
 
   renderCalendar();
-  renderCharts();
+  if (state.activeTab === "stats") renderCharts();
 }
 
 function bindCalendarSwipe() {
@@ -1104,6 +1173,7 @@ function registerServiceWorker() {
 /* ================= EXPORT ================= */
 
 function exportCSV(entries) {
+  if (guardGuest("export your logs")) return;
   const rows = [["Date", "Status", "Workout Type", "Workout Name", "Reason"]];
   entries.forEach((entry) => rows.push([entry.date, entry.status, entry.workoutType || "", entry.workoutName || "", entry.reason || ""]));
   const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -1142,6 +1212,7 @@ function downloadFile(content, filename, mimeType) {
 /* ================= BACKUP & RESTORE ================= */
 
 function downloadBackup() {
+  if (guardGuest("download a backup")) return;
   const payload = {
     app: "gym-tracker",
     exportedAt: new Date().toISOString(),
@@ -1155,6 +1226,10 @@ function downloadBackup() {
 }
 
 function handleRestoreFile(event) {
+  if (guardGuest("restore a backup")) {
+    els.restoreFileInput.value = "";
+    return;
+  }
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -1179,5 +1254,393 @@ function handleRestoreFile(event) {
   reader.readAsText(file);
 }
 
-init();
+/* ================= AUTH GATE (sign in / sign up / guest) ================= */
+/* Every real account is a normal Firebase email+password user — no more
+ * anonymous auth. Guests never touch Firebase at all: they can look around
+ * using whatever is already saved on this device, but any action that would
+ * write data is blocked with a prompt to create an account. */
 
+function guardGuest(actionLabel) {
+  if (!state.auth.isGuest) return false;
+  showNotice(`Create a free account to ${actionLabel}.`);
+  if (els.guestBanner) {
+    els.guestBanner.classList.add("shake");
+    setTimeout(() => els.guestBanner.classList.remove("shake"), 420);
+  }
+  return true;
+}
+
+function bindAuthEvents() {
+  els.authTabSignin.addEventListener("click", () => setAuthMode("signin"));
+  els.authTabSignup.addEventListener("click", () => setAuthMode("signup"));
+  els.authForm.addEventListener("submit", handleAuthSubmit);
+  els.authGuestBtn.addEventListener("click", () => enterGuestMode(false));
+}
+
+function setAuthMode(mode) {
+  state.auth.mode = mode;
+  const isSignup = mode === "signup";
+  els.authTabSignin.classList.toggle("active", !isSignup);
+  els.authTabSignup.classList.toggle("active", isSignup);
+  els.authTabSignin.setAttribute("aria-selected", String(!isSignup));
+  els.authTabSignup.setAttribute("aria-selected", String(isSignup));
+  els.authConfirmLabel.classList.toggle("hidden", !isSignup);
+  els.authPasswordConfirm.classList.toggle("hidden", !isSignup);
+  els.authPasswordConfirm.required = isSignup;
+  els.authPassword.setAttribute("autocomplete", isSignup ? "new-password" : "current-password");
+  els.authSubmitBtn.textContent = isSignup ? "Create account" : "Sign in";
+  els.authSubcopy.textContent = isSignup
+    ? "One account, every device — your streak follows you."
+    : "Sign in to sync your streak everywhere.";
+  hideAuthError();
+}
+
+function showAuthError(message) {
+  els.authError.textContent = message;
+  els.authError.classList.remove("hidden");
+}
+
+function hideAuthError() {
+  els.authError.classList.add("hidden");
+  els.authError.textContent = "";
+}
+
+function showAuthGate() {
+  els.authGate.classList.remove("hidden");
+  els.appShell.classList.add("hidden");
+  els.tabBar.classList.add("hidden");
+  hideAuthError();
+  els.authPassword.value = "";
+  els.authPasswordConfirm.value = "";
+}
+
+function enterApp(user) {
+  state.auth.user = user;
+  state.auth.isGuest = false;
+  localStorage.removeItem(STORAGE_KEYS.guestMode);
+
+  els.authGate.classList.add("hidden");
+  els.appShell.classList.remove("hidden");
+  els.tabBar.classList.remove("hidden");
+  els.guestBanner.classList.add("hidden");
+  els.signOutBtn.classList.remove("hidden");
+  els.signOutBtn.textContent = "Sign out";
+  els.accountEyebrow.textContent = "Signed in";
+  els.accountEmailLine.textContent = user.email || "Synced account";
+
+  render();
+  initCloudSync(user);
+}
+
+function enterGuestMode(silent) {
+  state.auth.isGuest = true;
+  state.auth.user = null;
+  localStorage.setItem(STORAGE_KEYS.guestMode, "1");
+
+  if (state.cloud.unsub) {
+    state.cloud.unsub();
+    state.cloud.unsub = null;
+  }
+  state.cloud.docRef = null;
+
+  els.authGate.classList.add("hidden");
+  els.appShell.classList.remove("hidden");
+  els.tabBar.classList.remove("hidden");
+  els.guestBanner.classList.remove("hidden");
+  els.signOutBtn.classList.remove("hidden");
+  els.signOutBtn.textContent = "Exit guest mode";
+  els.accountEyebrow.textContent = "Guest mode";
+  els.accountEmailLine.textContent = "Guest — nothing new will be saved";
+  setSyncState("off", "Guest mode — create an account to sync");
+
+  render();
+  if (!silent) showNotice("Browsing as a guest — sign up any time to start saving.");
+}
+
+function exitToGate() {
+  if (state.auth.isGuest) {
+    localStorage.removeItem(STORAGE_KEYS.guestMode);
+    state.auth.isGuest = false;
+    showAuthGate();
+    return;
+  }
+  if (firebaseIsConfigured() && firebase.auth().currentUser) {
+    firebase.auth().signOut().catch((error) => console.warn("Sign out failed", error));
+  } else {
+    showAuthGate();
+  }
+}
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  hideAuthError();
+
+  if (!ensureFirebaseApp()) {
+    showAuthError("Cloud sync isn't configured yet — check firebase-config.js.");
+    return;
+  }
+
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+
+  if (!email || password.length < 6) {
+    showAuthError("Enter an email and a password with 6+ characters.");
+    return;
+  }
+
+  els.authSubmitBtn.disabled = true;
+  const isSignup = state.auth.mode === "signup";
+
+  if (isSignup) {
+    const confirm = els.authPasswordConfirm.value;
+    if (password !== confirm) {
+      showAuthError("Passwords don't match.");
+      els.authSubmitBtn.disabled = false;
+      return;
+    }
+    firebase
+      .auth()
+      .createUserWithEmailAndPassword(email, password)
+      .catch((error) => showAuthError(mapAuthError(error, true)))
+      .finally(() => { els.authSubmitBtn.disabled = false; });
+  } else {
+    firebase
+      .auth()
+      .signInWithEmailAndPassword(email, password)
+      .catch((error) => showAuthError(mapAuthError(error, false)))
+      .finally(() => { els.authSubmitBtn.disabled = false; });
+  }
+}
+
+function mapAuthError(error, isSignup) {
+  console.warn("Auth error", error);
+  switch (error.code) {
+    case "auth/email-already-in-use":
+      return "That email already has an account — try signing in instead.";
+    case "auth/weak-password":
+      return "Choose a stronger password (6+ characters).";
+    case "auth/invalid-email":
+      return "That doesn't look like a valid email address.";
+    case "auth/user-not-found":
+    case "auth/invalid-credential":
+      return isSignup ? "Couldn't create that account — try again." : "No account with that email yet — try Sign up instead.";
+    case "auth/wrong-password":
+      return "Wrong password for that email.";
+    case "auth/too-many-requests":
+      return "Too many attempts — wait a moment and try again.";
+    case "auth/network-request-failed":
+      return "No internet connection right now — try again once you're back online.";
+    case "auth/operation-not-allowed":
+      return "Email sign-in isn't turned on for this project yet (Firebase Console → Authentication → Sign-in method).";
+    default:
+      return isSignup ? "Couldn't create the account. Please try again." : "Sign-in failed — check the email and password and try again.";
+  }
+}
+
+/* ---------- cloud sync (Firebase) ---------- */
+/* Local storage is always the source of truth first — every read/write
+ * elsewhere in this file goes through localStorage, wrapped in try/catch.
+ * This layer mirrors that same data to Firestore for signed-in accounts,
+ * and pulls it back down (merging by most-recent edit) on any device that's
+ * missing entries — e.g. after a reinstall or a fresh sign-in. */
+
+function firebaseIsConfigured() {
+  return (
+    typeof firebase !== "undefined" &&
+    window.firebaseConfig &&
+    window.firebaseConfig.apiKey &&
+    window.firebaseConfig.apiKey !== "YOUR_API_KEY"
+  );
+}
+
+function ensureFirebaseApp() {
+  if (!firebaseIsConfigured()) return false;
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.firebaseConfig);
+    }
+    return true;
+  } catch (error) {
+    console.warn("Firebase init failed", error);
+    return false;
+  }
+}
+
+function startAuthFlow() {
+  window.addEventListener("online", () => {
+    if (state.cloud.docRef) queueCloudSync(true);
+  });
+  window.addEventListener("offline", () => {
+    if (state.cloud.docRef) setSyncState("offline", "Offline — changes saved locally, will sync when back online");
+  });
+
+  if (!ensureFirebaseApp()) {
+    if (localStorage.getItem(STORAGE_KEYS.guestMode) === "1") enterGuestMode(true);
+    else showAuthGate();
+    return;
+  }
+
+  firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+      enterApp(user);
+      return;
+    }
+    if (state.cloud.unsub) {
+      state.cloud.unsub();
+      state.cloud.unsub = null;
+    }
+    state.cloud.docRef = null;
+    state.cloud.initialSyncDone = false;
+
+    if (localStorage.getItem(STORAGE_KEYS.guestMode) === "1") {
+      enterGuestMode(true);
+    } else {
+      showAuthGate();
+    }
+  });
+}
+
+function initCloudSync(user) {
+  if (!firebaseIsConfigured()) {
+    setSyncState("off", "Local only — cloud sync isn't configured");
+    return;
+  }
+
+  const db = state.cloud.db || firebase.firestore();
+  state.cloud.db = db;
+  if (!state.cloud.persistenceTried) {
+    state.cloud.persistenceTried = true;
+    try {
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    } catch (error) {
+      console.warn("Offline persistence unavailable", error);
+    }
+  }
+  setSyncState("syncing", "Connecting…");
+
+  if (state.cloud.unsub) {
+    state.cloud.unsub();
+    state.cloud.unsub = null;
+  }
+  state.cloud.uid = user.uid;
+  const docRef = db.collection("users").doc(user.uid);
+  state.cloud.docRef = docRef;
+
+  state.cloud.unsub = docRef.onSnapshot(
+    { includeMetadataChanges: true },
+    (snap) => {
+      if (snap.exists) mergeCloudData(snap.data());
+      const fromCache = snap.metadata.fromCache;
+      if (fromCache) {
+        setSyncState(
+          navigator.onLine ? "syncing" : "offline",
+          navigator.onLine ? "Syncing…" : "Offline — changes saved locally, will sync when back online"
+        );
+      } else {
+        setSyncState("online", "Synced just now");
+      }
+    },
+    (error) => {
+      console.warn("Cloud listener error", error);
+      setSyncState("error", "Sync error — changes are still saved locally");
+    }
+  );
+
+  queueCloudSync(true);
+}
+
+function mergeCloudData(cloudData) {
+  if (!cloudData) return;
+  let changed = false;
+
+  const cloudLogs = Array.isArray(cloudData.logs) ? cloudData.logs : [];
+  const logMap = new Map();
+  state.logs.forEach((entry) => logMap.set(entry.date, entry));
+  cloudLogs.forEach((entry) => {
+    const local = logMap.get(entry.date);
+    if (!local || (entry.updatedAt || 0) > (local.updatedAt || 0)) {
+      logMap.set(entry.date, entry);
+      changed = true;
+    }
+  });
+  if (changed) {
+    state.logs = Array.from(logMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  const cloudJournal = Array.isArray(cloudData.journal) ? cloudData.journal : [];
+  const journalMap = new Map();
+  state.journal.forEach((entry) => journalMap.set(entry.id, entry));
+  let journalChanged = false;
+  cloudJournal.forEach((entry) => {
+    if (!journalMap.has(entry.id)) {
+      journalMap.set(entry.id, entry);
+      journalChanged = true;
+    }
+  });
+  if (journalChanged) {
+    state.journal = Array.from(journalMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    changed = true;
+  }
+
+  if (!state.cloud.initialSyncDone) {
+    if (typeof cloudData.goalTarget === "number") {
+      state.goalTarget = cloudData.goalTarget;
+      els.goalInput.value = state.goalTarget;
+      changed = true;
+    }
+    state.cloud.initialSyncDone = true;
+  }
+
+  if (changed) {
+    localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(state.logs));
+    localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify(state.journal));
+    localStorage.setItem(STORAGE_KEYS.goal, String(state.goalTarget));
+    render();
+  }
+}
+
+function queueCloudSync(immediate = false) {
+  if (!state.cloud.docRef) return;
+  if (!navigator.onLine) {
+    setSyncState("offline", "Offline — changes saved locally, will sync when back online");
+  }
+  clearTimeout(state.cloud.pushTimer);
+  if (immediate) {
+    pushToCloud();
+  } else {
+    state.cloud.pushTimer = setTimeout(pushToCloud, 900);
+  }
+}
+
+function pushToCloud() {
+  if (!state.cloud.docRef) return;
+  setSyncState("syncing", "Syncing…");
+  state.cloud.docRef
+    .set(
+      {
+        logs: state.logs,
+        journal: state.journal,
+        goalTarget: state.goalTarget,
+        theme: state.theme,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    )
+    .then(() => {
+      setSyncState(
+        navigator.onLine ? "online" : "offline",
+        navigator.onLine ? "Synced just now" : "Saved locally — will sync when back online"
+      );
+    })
+    .catch((error) => {
+      console.warn("Cloud sync failed", error);
+      setSyncState("error", "Sync error — changes are still saved locally");
+    });
+}
+
+function setSyncState(syncState, text) {
+  if (els.syncStatusDot) els.syncStatusDot.dataset.state = syncState;
+  if (els.syncStatusText) els.syncStatusText.textContent = text;
+}
+
+init();

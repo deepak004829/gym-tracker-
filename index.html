@@ -24,18 +24,68 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+
+    <!-- Cloud sync (Firebase). App works fully offline even if this is left unconfigured. -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
+    <script src="firebase-config.js" defer></script>
   </head>
   <body>
-    <div class="app-shell">
+    <div id="authGate" class="auth-gate">
+      <div class="auth-backdrop" aria-hidden="true">
+        <div class="auth-blob blob-a"></div>
+        <div class="auth-blob blob-b"></div>
+      </div>
+
+      <div class="auth-card glass" id="authCard">
+        <div class="auth-mark" aria-hidden="true">🏋️</div>
+        <h1 class="auth-title">GYM LOG</h1>
+        <p class="auth-sub" id="authSubcopy">Sign in to sync your streak everywhere.</p>
+
+        <div class="auth-switch" role="tablist">
+          <button id="authTabSignin" class="auth-switch-btn active" role="tab" aria-selected="true">Sign in</button>
+          <button id="authTabSignup" class="auth-switch-btn" role="tab" aria-selected="false">Sign up</button>
+        </div>
+
+        <form id="authForm" class="auth-form" autocomplete="on">
+          <label class="field-label" for="authEmail">Email</label>
+          <input id="authEmail" class="glass-input" type="email" placeholder="you@example.com" autocomplete="email" required />
+
+          <label class="field-label" for="authPassword">Password</label>
+          <input id="authPassword" class="glass-input" type="password" placeholder="6+ characters" autocomplete="current-password" minlength="6" required />
+
+          <label class="field-label hidden" id="authConfirmLabel" for="authPasswordConfirm">Confirm password</label>
+          <input id="authPasswordConfirm" class="glass-input hidden" type="password" placeholder="Confirm password" autocomplete="new-password" minlength="6" />
+
+          <p id="authError" class="auth-error hidden" role="alert"></p>
+
+          <button id="authSubmitBtn" type="submit" class="btn btn-primary auth-submit">Sign in</button>
+        </form>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <button id="authGuestBtn" class="btn btn-ghost auth-guest-btn">Continue as guest</button>
+        <p class="auth-guest-note">Guests can look around, but logging days, journaling, and backups need an account.</p>
+      </div>
+    </div>
+
+    <div class="app-shell hidden" id="appShell">
       <header class="topbar">
         <div class="brand">
-          <p class="eyebrow">Member since today</p>
+          <p class="eyebrow" id="accountEyebrow">Member since today</p>
           <h1>GYM LOG</h1>
         </div>
         <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
       </header>
+
+      <div id="guestBanner" class="guest-banner glass hidden">
+        <span>👀 Browsing as guest — your changes won't be saved.</span>
+        <button id="guestSignUpBtn" class="btn btn-primary guest-banner-btn">Create account</button>
+      </div>
 
       <!-- ================= PUNCH IN TAB ================= -->
       <section class="tab-panel" id="panel-punch">
@@ -248,6 +298,23 @@
 
         <section class="card">
           <div class="section-header">
+            <h3>Account &amp; cloud sync</h3>
+            <p id="accountEmailLine">Auto backup, works offline too</p>
+          </div>
+          <div class="sync-status-row">
+            <span id="syncStatusDot" class="sync-dot" data-state="off"></span>
+            <p id="syncStatusText" class="mono">Connecting…</p>
+          </div>
+          <p class="muted cloud-copy" id="cloudCopy">
+            Every entry saves to this phone instantly, online or offline. When a connection is
+            available it quietly backs up to the cloud too, so a lost phone or a reinstall
+            doesn't mean lost data.
+          </p>
+          <button id="signOutBtn" class="btn btn-secondary hidden">Sign out</button>
+        </section>
+
+        <section class="card">
+          <div class="section-header">
             <h3>Backup &amp; restore</h3>
             <p id="backupStatus" class="muted mono">No signup, works offline</p>
           </div>
@@ -288,7 +355,7 @@
       <button id="iosBannerClose" class="ios-banner-close" aria-label="Dismiss">✕</button>
     </div>
 
-    <nav class="tab-bar" aria-label="Main navigation">
+    <nav class="tab-bar hidden" id="tabBar" aria-label="Main navigation">
       <button class="tab-btn active" data-tab="punch"><span class="tab-icon">🎟️</span><span>Punch In</span></button>
       <button class="tab-btn" data-tab="calendar"><span class="tab-icon">📅</span><span>Calendar</span></button>
       <button class="tab-btn" data-tab="stats"><span class="tab-icon">📊</span><span>Stats</span></button>
@@ -378,6 +445,6 @@
       </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
   </body>
 </html>
