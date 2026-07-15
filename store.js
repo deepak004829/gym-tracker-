@@ -7,7 +7,7 @@ GL.store = (function () {
   const state = {
     logs: [],          // [{date,status,workoutType[],reason,updatedAt,loggedAt}]
     journal: [],        // [{id,date,text,createdAt}]
-    plans: {},           // { [date]: {title,focus,notes,exercises:[{id,name,sets,reps,weight,done}]} }
+    plans: {},           // { [date]: {title,focus,notes,planDone,exercises:[{id,name,sets,reps,weight,done}]} }
     goalTarget: 12,
     theme: "system",
     reminder: false,
@@ -40,7 +40,7 @@ GL.store = (function () {
 
   function todayPlan() {
     const date = key();
-    if (!state.plans[date]) state.plans[date] = { title: "", focus: "", notes: "", exercises: [] };
+    if (!state.plans[date]) state.plans[date] = { title: "", focus: "", notes: "", planDone: false, exercises: [] };
     return state.plans[date];
   }
 

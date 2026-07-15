@@ -45,6 +45,45 @@ GL.settingsSheet = (function () {
 
     // Notification section
     renderNotifSection();
+    // Tokens / rewards section
+    renderTokensSection();
+  }
+
+  function renderTokensSection() {
+    const container = document.getElementById("tokensSection");
+    if (!container) return;
+
+    const g = GL.gamification;
+    const data = g.getData();
+    const XP_PER_TOKEN = 100;
+    const tokens = Math.floor(data.totalXP / XP_PER_TOKEN);
+    const xpToNext = XP_PER_TOKEN - (data.totalXP % XP_PER_TOKEN);
+
+    container.innerHTML = `
+      <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:24px 0 8px">🎟️ REWARDS</p>
+      <div class="card token-card">
+        <div class="token-row">
+          <div class="token-count-wrap">
+            <span class="token-icon">🎟️</span>
+            <div><strong class="token-count num">${tokens}</strong><span class="muted" style="font-size:.76rem;display:block">token${tokens === 1 ? "" : "s"} earned</span></div>
+          </div>
+          <button type="button" id="redeemTokensBtn" class="btn secondary" style="min-height:38px;padding:0 16px;font-size:.78rem">Redeem</button>
+        </div>
+        <p class="muted" style="font-size:.72rem;margin:10px 0 0">${xpToNext} XP to your next token · earned automatically as you log workouts, notes, and plans</p>
+        <div id="couponGrid" class="coupon-grid hidden">
+          <div class="coupon-item locked"><span class="coupon-emoji">🏷️</span><strong>Mystery coupon</strong><span class="muted">Coming soon</span></div>
+          <div class="coupon-item locked"><span class="coupon-emoji">🎁</span><strong>Gear discount</strong><span class="muted">Coming soon</span></div>
+          <div class="coupon-item locked"><span class="coupon-emoji">✨</span><strong>Premium theme</strong><span class="muted">Coming soon</span></div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("redeemTokensBtn").onclick = () => {
+      const grid = document.getElementById("couponGrid");
+      const nowHidden = grid.classList.toggle("hidden");
+      if (nowHidden) return;
+      GL.toast?.showToast("Redeeming is coming soon — keep stacking tokens!");
+    };
   }
 
   function renderNotifSection() {

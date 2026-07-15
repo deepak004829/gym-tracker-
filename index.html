@@ -114,10 +114,10 @@
       <div class="weekday-row" id="weekdayRow"></div>
       <div id="heatGrid" class="heat-grid" aria-label="Monthly calendar"></div>
       <div class="heat-legend">
-        <span><i class="went"></i>Went</span>
-        <span><i class="rest"></i>Rest</span>
-        <span><i class="missed"></i>Missed</span>
-        <span><i class="holiday-dot-legend"></i>Holiday</span>
+        <span>❤️ Went</span>
+        <span>💤 Rest</span>
+        <span>😤 Missed</span>
+        <span>🎉 Holiday</span>
       </div>
     </div>
 
@@ -206,9 +206,9 @@
   <p class="eyebrow">PLAN &amp; LOG</p>
   <h2>Today's workout</h2>
   <p class="sub" id="planSheetDate">—</p>
-  <div class="card plan-editor-card">
-    <input id="planTitleInput" class="plan-title" placeholder="e.g. Lower body strength">
-    <textarea id="planFocusInput" class="plan-focus" rows="2" placeholder="Focus, intention, or warm-up…"></textarea>
+  <div id="planEditorCard" class="card plan-editor-card">
+    <textarea id="planTextInput" class="plan-text" rows="3" placeholder="e.g. Lower body strength — focus, intention, or warm-up…"></textarea>
+    <button id="planCompleteToggle" class="plan-complete-toggle" type="button" aria-pressed="false" aria-label="Mark plan as done"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/></svg></button>
   </div>
   <div class="section-head" style="margin-top:20px"><h3>Exercises</h3></div>
   <div id="exerciseCards" class="exercise-cards"></div>
@@ -252,6 +252,9 @@
 
   <!-- Notification section -->
   <div id="notifTimeSection"></div>
+
+  <!-- Tokens / rewards section -->
+  <div id="tokensSection"></div>
 
   <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:24px 0 8px">OTHER</p>
   <div class="list-group">

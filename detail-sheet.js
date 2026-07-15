@@ -61,7 +61,7 @@ GL.detailSheet = (function () {
       if (plan && (plan.title || plan.notes || plan.exercises?.length)) {
         html += `<div class="detail-block plan-block">
           <p class="eyebrow">🏋️ Workout Plan</p>
-          ${plan.title ? `<h4 class="plan-detail-title">${escapeHtml(plan.title)}</h4>` : ""}
+          ${plan.title ? `<h4 class="plan-detail-title${plan.planDone ? " done" : ""}">${escapeHtml(plan.title)}</h4>` : ""}
           ${plan.focus ? `<p class="plan-detail-focus muted">${escapeHtml(plan.focus)}</p>` : ""}
           ${plan.exercises?.length ? `
           <div class="exercise-detail-list">

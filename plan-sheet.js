@@ -15,8 +15,13 @@ GL.planSheet = (function () {
     onPersist = onSave;
     $("planSheetClose").onclick = () => closeSheet("planSheet");
     $("planSheetDone").onclick = () => closeSheet("planSheet");
-    $("planTitleInput").oninput = () => { todayPlan().title = $("planTitleInput").value; queueSave(); };
-    $("planFocusInput").oninput = () => { todayPlan().focus = $("planFocusInput").value; queueSave(); };
+    $("planTextInput").oninput = () => { todayPlan().title = $("planTextInput").value; queueSave(); };
+    $("planCompleteToggle").onclick = () => {
+      const plan = todayPlan();
+      plan.planDone = !plan.planDone;
+      queueSave();
+      renderPlanDoneState(plan);
+    };
     $("planNotesInput").oninput = () => { todayPlan().notes = $("planNotesInput").value; queueSave(); };
     $("addExerciseBtn").onclick = addExercise;
   }
@@ -24,11 +29,19 @@ GL.planSheet = (function () {
   function openPlanSheet() {
     const plan = todayPlan();
     $("planSheetDate").textContent = displayDate();
-    $("planTitleInput").value = plan.title || "";
-    $("planFocusInput").value = plan.focus || "";
+    // Older entries stored the intention separately in `focus` — fold it in once, on open, so nothing is lost.
+    if (plan.focus && !plan.title) { plan.title = plan.focus; }
+    $("planTextInput").value = plan.title || "";
     $("planNotesInput").value = plan.notes || "";
+    renderPlanDoneState(plan);
     renderExerciseCards();
     openSheet("planSheet");
+  }
+
+  function renderPlanDoneState(plan) {
+    $("planEditorCard").classList.toggle("plan-done", !!plan.planDone);
+    $("planCompleteToggle").classList.toggle("done", !!plan.planDone);
+    $("planCompleteToggle").setAttribute("aria-pressed", String(!!plan.planDone));
   }
 
   function queueSave() {
@@ -44,6 +57,16 @@ GL.planSheet = (function () {
 
   function cryptoId() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()); }
 
+  function knownExerciseNames() {
+    const plans = getState().plans || {};
+    const names = new Set();
+    Object.values(plans).forEach((p) => (p.exercises || []).forEach((ex) => {
+      const n = (ex.name || "").trim();
+      if (n) names.add(n);
+    }));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }
+
   function renderExerciseCards() {
     const plan = todayPlan();
     const list = $("exerciseCards");
@@ -54,8 +77,9 @@ GL.planSheet = (function () {
       return `
       <div class="exercise-card" data-id="${ex.id}" data-index="${index}">
         <div class="row1">
+          <span class="seq">${index + 1}</span>
           <span class="drag" data-drag>${icon("grip")}</span>
-          <input class="ex-name" data-field="name" data-id="${ex.id}" value="${escapeHtml(ex.name)}" placeholder="Exercise name">
+          <input class="ex-name" list="exerciseNameOptions" data-field="name" data-id="${ex.id}" value="${escapeHtml(ex.name)}" placeholder="Exercise name">
           <button type="button" class="done-toggle ${ex.done ? "done" : ""}" data-toggle-done="${ex.id}">${icon("check")}</button>
         </div>
         <div class="row2">
@@ -65,11 +89,16 @@ GL.planSheet = (function () {
         </div>
         ${prevText ? `<p class="prev">${prevText}</p>` : ""}
         <div class="row3">
-          <button type="button" data-dup="${ex.id}">${icon("copy")}Duplicate</button>
-          <button type="button" class="del" data-del="${ex.id}">${icon("trash")}Remove</button>
+          <button type="button" class="save" data-save="${ex.id}" aria-label="Confirm">${icon("check")}</button>
+          <button type="button" class="del" data-del="${ex.id}" aria-label="Delete">${icon("x")}</button>
         </div>
       </div>`;
     }).join("");
+    $("exerciseNameOptions")?.remove();
+    const datalist = document.createElement("datalist");
+    datalist.id = "exerciseNameOptions";
+    datalist.innerHTML = knownExerciseNames().map((n) => `<option value="${escapeHtml(n)}"></option>`).join("");
+    list.after(datalist);
 
     list.querySelectorAll("input[data-field]").forEach((input) => {
       input.oninput = () => {
@@ -83,10 +112,11 @@ GL.planSheet = (function () {
         if (ex) { ex.done = !ex.done; queueSave(); renderExerciseCards(); }
       };
     });
-    list.querySelectorAll("[data-dup]").forEach((btn) => {
+    list.querySelectorAll("[data-save]").forEach((btn) => {
       btn.onclick = () => {
-        const ex = plan.exercises.find((e) => e.id === btn.dataset.dup);
-        if (ex) { plan.exercises.push({ ...ex, id: cryptoId(), done: false }); queueSave(); renderExerciseCards(); }
+        btn.classList.add("saved");
+        showToast("Saved");
+        setTimeout(() => btn.classList.remove("saved"), 700);
       };
     });
     list.querySelectorAll("[data-del]").forEach((btn) => {

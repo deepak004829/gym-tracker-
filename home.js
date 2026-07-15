@@ -102,10 +102,38 @@ GL.pageHome = (function () {
     const empty = 10 - filled;
     const xpBar = "█".repeat(filled) + "░".repeat(empty);
 
-    // Achievements
+    // Achievements — surface only what's relevant: the last one earned, and the next one within reach.
     const earned = data.earnedAchievements;
     const allAch = g.ACHIEVEMENTS;
-    const achHTML = allAch.map(a => {
+    const lastEarned = earned.length ? allAch.find(a => a.id === earned[earned.length - 1]) : null;
+    const nextUp = allAch.find(a => !earned.includes(a.id));
+
+    const featuredHTML = [
+      lastEarned ? `<div class="ach-item earned ach-featured">
+        <span class="ach-emoji">${lastEarned.emoji}</span>
+        <div class="ach-info">
+          <strong>${lastEarned.label}</strong>
+          <p>${lastEarned.desc}</p>
+        </div>
+        <span class="ach-check">✓</span>
+      </div>` : "",
+      nextUp ? `<div class="ach-item locked ach-featured">
+        <span class="ach-emoji">${nextUp.emoji}</span>
+        <div class="ach-info">
+          <strong>${nextUp.label}</strong>
+          <p class="ach-provoke">${provokeCopy(nextUp, stats)}</p>
+        </div>
+        <span class="ach-lock">🔒</span>
+      </div>` : (lastEarned ? `<div class="ach-item earned ach-featured">
+        <span class="ach-emoji">🏆</span>
+        <div class="ach-info">
+          <strong>All achievements unlocked</strong>
+          <p>You've cleared the Hall of Fame.</p>
+        </div>
+      </div>` : ""),
+    ].join("");
+
+    const fullListHTML = allAch.map(a => {
       const isEarned = earned.includes(a.id);
       return `<div class="ach-item ${isEarned ? "earned" : "locked"}">
         <span class="ach-emoji">${a.emoji}</span>
@@ -143,8 +171,45 @@ GL.pageHome = (function () {
         </div>
       </div>
       <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">HALL OF FAME</p><h2>Achievements</h2></div><span class="muted" style="font-size:.76rem">${earned.length}/${allAch.length}</span></div>
-      <div class="ach-list">${achHTML}</div>
+      <div class="ach-list">${featuredHTML}</div>
+      <button type="button" id="achToggleBtn" class="ach-toggle">See all ${allAch.length} achievements ›</button>
+      <div class="ach-list ach-list-full hidden" id="achFullList">${fullListHTML}</div>
     `;
+
+    const toggleBtn = $("achToggleBtn");
+    const fullList = $("achFullList");
+    if (toggleBtn) {
+      toggleBtn.onclick = () => {
+        const nowHidden = fullList.classList.toggle("hidden");
+        toggleBtn.textContent = nowHidden ? `See all ${allAch.length} achievements ›` : "Hide full list ‹";
+      };
+    }
+  }
+
+  // A short nudge tailored to how close the person actually is to unlocking `a`.
+  function provokeCopy(a, stats) {
+    const progress = {
+      first_workout:  { have: stats.totalWent, need: 1 },
+      streak_3:       { have: stats.currentStreak, need: 3 },
+      streak_7:       { have: stats.currentStreak, need: 7 },
+      streak_30:      { have: stats.currentStreak, need: 30 },
+      workouts_10:    { have: stats.totalWent, need: 10 },
+      leg_warrior:    { have: stats.legDays, need: 5 },
+      workouts_30:    { have: stats.totalWent, need: 30 },
+      elite_athlete:  { have: stats.totalXP, need: 2000 },
+      note_taker:     { have: stats.noteCount, need: 5 },
+      planner:        { have: stats.planCount, need: 5 },
+    }[a.id];
+    if (!progress) return "Keep going — it's within reach.";
+    const gap = Math.max(0, progress.need - progress.have);
+    if (gap <= 0) return "Unlocking any moment now.";
+    if (a.id.startsWith("streak")) return gap === 1 ? "One more day and it's yours. Don't stop now." : `${gap} days to go — don't break it now.`;
+    if (a.id === "workouts_10" || a.id === "workouts_30") return `${gap} more session${gap === 1 ? "" : "s"} and it's locked in.`;
+    if (a.id === "elite_athlete") return `${gap} XP away from Elite rank. So close.`;
+    if (a.id === "leg_warrior") return `${gap} more leg day${gap === 1 ? "" : "s"} to earn it.`;
+    if (a.id === "note_taker") return `${gap} more note${gap === 1 ? "" : "s"} away.`;
+    if (a.id === "planner") return `${gap} more plan${gap === 1 ? "" : "s"} away.`;
+    return "Getting closer.";
   }
 
   function renderDailyMissions() {

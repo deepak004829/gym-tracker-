@@ -4,7 +4,7 @@ GL.toast = (function () {
   const { $ } = GL.dom;
   let timer;
   function showToast(message) {
-    const node = $("notice");
+    const node = $("toastEl");
     node.textContent = message;
     node.classList.add("show");
     clearTimeout(timer);

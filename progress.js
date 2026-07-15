@@ -61,17 +61,20 @@ GL.pageProgress = (function () {
     const startPad = (firstDow === 0) ? 6 : firstDow - 1;
     for (let i = 0; i < startPad; i++) cells.push(`<div class="heat-cell pad"></div>`);
 
+    const STATUS_EMOJI = { went: "❤️", rest: "💤", missed: "😤" };
+
     for (let day = 1; day <= last.getDate(); day++) {
       const date = key(new Date(year, month, day));
       const entry = getLog(date);
       const cls = entry ? entry.status.toLowerCase() : "";
+      const emoji = STATUS_EMOJI[cls] || "";
       const holiday = INDIA_HOLIDAYS[date];
       const isHoliday = !!holiday;
       const isSunday = new Date(`${date}T12:00:00`).getDay() === 0;
 
       cells.push(`<button type="button" class="heat-cell ${cls} ${date === today ? "today" : ""} ${isHoliday ? "holiday" : ""} ${isSunday ? "sunday" : ""}" data-date="${date}" data-holiday="${holiday || ""}" title="${holiday || ""}">
-        <span class="fill"></span>
-        <span>${day}</span>
+        <span class="day-num">${day}</span>
+        ${emoji ? `<span class="cell-emoji">${emoji}</span>` : ""}
         ${isHoliday ? '<span class="holiday-dot"></span>' : ''}
       </button>`);
     }
