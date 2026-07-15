@@ -1,31 +1,16 @@
 {
-  "name": "Gym Tracker",
+  "name": "Gym Log",
   "short_name": "Gym Log",
-  "description": "A focused personal gym tracker for plans, check-ins, and training insights.",
+  "description": "A premium, focused gym tracker — daily check-ins, streaks, and workout plans.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0D110A",
-  "theme_color": "#0D110A",
+  "background_color": "#0b0d0f",
+  "theme_color": "#0b0d0f",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

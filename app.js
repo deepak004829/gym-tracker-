@@ -1,84 +1,173 @@
-const STORE={theme:"gym-log-theme",reminder:"gym-log-reminder"};
-const $=id=>document.getElementById(id);const state={logs:[],journal:[],plans:{},goalTarget:12,theme:"system",reminder:false,activeTab:"punch",calendar:{year:new Date().getFullYear(),month:new Date().getMonth()},auth:{user:null,isGuest:false,mode:"signin"},cloud:{profileRef:null,logsRef:null,notesRef:null,plansRef:null,unsubs:[],timer:null,ready:false,migrating:false}};let monthlyChart,workoutChart,noticeTimer;
-const els={};
+(function () {
+  const { $ } = GL.dom;
+  const { key } = GL.date;
+  const { getState, loadPreferences, savePreferences, getLog, currentStreak, todayPlan } = GL.store;
+  const { initNav } = GL.nav;
+  const { showToast } = GL.toast;
+  const { closeAllSheets } = GL.sheet;
+  const { initLogSheet, openLogSheet } = GL.logSheet;
+  const { initDetailSheet, openDetailSheet } = GL.detailSheet;
+  const { initPlanSheet, openPlanSheet } = GL.planSheet;
+  const { initAuthGate, showGate, showApp, setAuthMode } = GL.authGate;
+  const { renderHome } = GL.pageHome;
+  const { renderProgress, changeHistoryMonth, weekdayLabelsHTML } = GL.pageProgress;
+  const { initSettingsSheet, renderSettings, applyTheme, tryAutoSchedule } = GL.settingsSheet;
+  const { firebaseReady, initAuth, signOutUser } = GL.authApi;
+  const { configureSync, initSync, queueProfileSync, saveLog, savePlanRecord } = GL.sync;
 
-function init(){cache();loadPreferences();bind();startAuth();registerServiceWorker();render();}
-function cache(){["authGate","appShell","tabBar","authSubcopy","authTabSignin","authTabSignup","authForm","authEmail","authPassword","authPasswordConfirm","authConfirmLabel","authError","authSubmitBtn","authForgotBtn","authGuestBtn","guestBanner","guestSignUpBtn","accountEyebrow","themeToggle","notice","heroDate","heroStatus","heroSummary","heroStreak","wentBtn","restBtn","missedBtn","quickNoteToggle","quickNoteWrap","quickNoteInput","quickNoteSave","recentLogs","calendar","calendarLabel","prevMonthBtn","nextMonthBtn","planDate","planTitle","planFocus","savePlanBtn","exerciseList","emptyExercises","addExerciseBtn","workoutNotes","saveWorkoutNotesBtn","journalList","currentStreak","longestStreak","consistency","totalDays","monthlyChart","workoutChart","insightTitle","insightText","accountAvatar","accountEmailLine","accountSubStatus","syncStatusText","signOutBtn","themeSystemBtn","themeLightBtn","themeDarkBtn","goalInput","saveGoalBtn","goalText","goalBar","reminderToggle","exportAllBtn","aboutSyncStatus","entryModal","modalTitle","closeEntryBtn","statusSelect","workoutWrap","workoutGroup","reasonWrap","reasonInput","cancelBtn","saveBtn","detailModal","closeDetailBtn","detailTitle","detailContent","editDetailBtn"].forEach(id=>els[id]=$(id));els.tabButtons=[...document.querySelectorAll(".tab-bar button")];els.panels={punch:$("panel-punch"),"plan-log":$("panel-plan-log"),analytics:$("panel-analytics"),settings:$("panel-settings")};}
-function bind(){
-  els.wentBtn.onclick=()=>openEntry("Went");els.restBtn.onclick=()=>openEntry("Rest");els.missedBtn.onclick=()=>openEntry("Missed");els.quickNoteToggle.onclick=()=>els.quickNoteWrap.classList.toggle("hidden");els.quickNoteSave.onclick=saveQuickNote;els.prevMonthBtn.onclick=()=>changeMonth(-1);els.nextMonthBtn.onclick=()=>changeMonth(1);
-  els.savePlanBtn.onclick=savePlan;els.saveWorkoutNotesBtn.onclick=saveWorkoutNotes;els.addExerciseBtn.onclick=addExercise;els.exerciseList.addEventListener("click",event=>{const button=event.target.closest("button[data-remove]");if(button)removeExercise(Number(button.dataset.remove));});els.exerciseList.addEventListener("input",event=>updateExercise(event));
-  els.tabButtons.forEach(button=>button.onclick=()=>showTab(button.dataset.tab));els.themeToggle.onclick=()=>setTheme(state.theme==="dark"?"light":"dark");[els.themeSystemBtn,els.themeLightBtn,els.themeDarkBtn].forEach(button=>button.onclick=()=>setTheme(button.dataset.theme));els.saveGoalBtn.onclick=saveGoal;els.reminderToggle.onchange=toggleReminder;els.exportAllBtn.onclick=exportCSV;els.signOutBtn.onclick=signOut;els.guestSignUpBtn.onclick=()=>{state.auth.isGuest=false;setAuthMode("signup");showGate();};
-  els.statusSelect.onchange=updateEntryFields;els.saveBtn.onclick=saveEntry;els.cancelBtn.onclick=closeEntry;els.closeEntryBtn.onclick=closeEntry;els.closeDetailBtn.onclick=closeDetail;els.editDetailBtn.onclick=()=>{const date=els.editDetailBtn.dataset.date;closeDetail();openEntry(null,date);};[els.entryModal,els.detailModal].forEach(modal=>modal.onclick=e=>{if(e.target===modal)modal.classList.add("hidden")});document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeEntry();closeDetail();}});
-  els.authTabSignin.onclick=()=>setAuthMode("signin");els.authTabSignup.onclick=()=>setAuthMode("signup");els.authForm.onsubmit=submitAuth;els.authForgotBtn.onclick=resetPassword;els.authGuestBtn.onclick=enterGuest;
-}
+  const state = getState();
 
-function showTab(name){state.activeTab=name;Object.entries(els.panels).forEach(([key,panel])=>panel.classList.toggle("hidden",key!==name));els.tabButtons.forEach(button=>button.classList.toggle("active",button.dataset.tab===name));if(name==="analytics")requestAnimationFrame(renderCharts);window.scrollTo({top:0,behavior:"smooth"});}
-function loadPreferences(){try{state.theme=localStorage.getItem(STORE.theme)||"system";state.reminder=localStorage.getItem(STORE.reminder)==="true";}catch{}applyTheme();}
-function savePreferences(){try{localStorage.setItem(STORE.theme,state.theme);localStorage.setItem(STORE.reminder,String(state.reminder));}catch{}}
-function applyTheme(){const dark=state.theme==="dark"||(state.theme==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.body.classList.toggle("dark",dark);[els.themeSystemBtn,els.themeLightBtn,els.themeDarkBtn].forEach(button=>button.classList.toggle("active",button.dataset.theme===state.theme));}
-function setTheme(theme){state.theme=theme;applyTheme();savePreferences();if(!state.auth.isGuest)queueSync();renderCharts();}
-function showNotice(message){els.notice.textContent=message;els.notice.classList.remove("hidden");clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>els.notice.classList.add("hidden"),3400);}
-function guardGuest(action){if(!state.auth.isGuest)return false;showNotice(`Create an account to ${action}.`);return true;}
+  function render() {
+    renderHome({ onQuickStatus: handleQuickStatus, onOpenPlan: openPlanSheet, onOpenDetail: openDetailSheet });
+    renderProgress({ onOpenDetail: openDetailSheet });
+    if (!$("settingsSheet").classList.contains("hidden")) renderSettings();
+  }
 
-function setAuthMode(mode){state.auth.mode=mode;const signup=mode==="signup";els.authTabSignin.classList.toggle("active",!signup);els.authTabSignup.classList.toggle("active",signup);els.authConfirmLabel.classList.toggle("hidden",!signup);els.authPasswordConfirm.required=signup;els.authPasswordConfirm.value="";els.authSubmitBtn.textContent=signup?"Create account":"Sign in";els.authSubcopy.textContent=signup?"Create an account to sync every workout.":"Sign in to keep your workouts in sync.";clearAuthError();}
-function showGate(){els.appShell.classList.add("hidden");els.tabBar.classList.add("hidden");els.authGate.classList.remove("hidden");}
-function showApp(){els.authGate.classList.add("hidden");els.appShell.classList.remove("hidden");els.tabBar.classList.remove("hidden");els.guestBanner.classList.toggle("hidden",!state.auth.isGuest);}
-function showAuthError(message){els.authError.textContent=message;els.authError.classList.remove("hidden");}function clearAuthError(){els.authError.classList.add("hidden");els.authError.textContent="";}
-function firebaseReady(){return typeof firebase!=="undefined"&&window.firebaseConfig&&window.firebaseConfig.apiKey&&window.firebaseConfig.apiKey!=="YOUR_API_KEY";}
-function startAuth(){if(!firebaseReady()){showGate();showAuthError("Firebase is not configured yet.");return;}try{if(!firebase.apps.length)firebase.initializeApp(window.firebaseConfig);firebase.auth().onAuthStateChanged(user=>user?enterApp(user):showGate());}catch(error){showGate();showAuthError("Couldn’t connect to Firebase. Check your configuration.");console.error(error);}}
-async function submitAuth(event){event.preventDefault();clearAuthError();const email=els.authEmail.value.trim(),password=els.authPassword.value;if(state.auth.mode==="signup"&&password!==els.authPasswordConfirm.value){showAuthError("Passwords do not match.");return;}try{els.authSubmitBtn.disabled=true;if(state.auth.mode==="signup")await firebase.auth().createUserWithEmailAndPassword(email,password);else await firebase.auth().signInWithEmailAndPassword(email,password);}catch(error){showAuthError(readAuthError(error));}finally{els.authSubmitBtn.disabled=false;}}
-async function resetPassword(){const email=els.authEmail.value.trim();if(!email){showAuthError("Enter your email first.");return;}try{await firebase.auth().sendPasswordResetEmail(email);showNotice("Password reset email sent.");}catch(error){showAuthError(readAuthError(error));}}
-function readAuthError(error){return ({"auth/invalid-credential":"Email or password is incorrect.","auth/email-already-in-use":"An account already exists for this email.","auth/weak-password":"Use at least six characters.","auth/invalid-email":"Enter a valid email."})[error.code]||"Something went wrong. Please try again.";}
-function enterGuest(){state.auth={...state.auth,user:null,isGuest:true};state.logs=[];state.journal=[];state.plans={};state.goalTarget=12;els.accountEyebrow.textContent="PREVIEW MODE";els.accountEmailLine.textContent="Guest";els.accountSubStatus.textContent="Create an account to save progress";els.accountAvatar.textContent="G";setSyncText("Preview only");showApp();render();}
-function enterApp(user){state.auth={...state.auth,user,isGuest:false};state.logs=[];state.journal=[];state.plans={};state.cloud.ready=false;els.accountEyebrow.textContent="YOUR TRAINING";els.accountEmailLine.textContent=user.email||"Gym Log member";els.accountSubStatus.textContent="Firebase account";els.accountAvatar.textContent=(user.email||"G")[0].toUpperCase();showApp();initSync(user);render();}
-async function signOut(){if(state.auth.isGuest){state.auth.isGuest=false;setAuthMode("signin");showGate();return;}try{await firebase.auth().signOut();}catch{showNotice("Couldn’t sign out. Try again.");}}
+  function handleQuickStatus(status) {
+    openLogSheet(status, key());
+  }
 
-function initSync(user){state.cloud.unsubs.forEach(unsub=>unsub());state.cloud.unsubs=[];const db=firebase.firestore();try{db.enablePersistence({synchronizeTabs:true}).catch(()=>{});}catch{}state.cloud.profileRef=db.collection("users").doc(user.uid);state.cloud.logsRef=state.cloud.profileRef.collection("dailyLogs");state.cloud.notesRef=state.cloud.profileRef.collection("notes");state.cloud.plansRef=state.cloud.profileRef.collection("workouts");setSyncText("Connecting…");state.cloud.unsubs.push(state.cloud.profileRef.onSnapshot({includeMetadataChanges:true},snapshot=>{if(snapshot.exists){mergeProfile(snapshot.data());migrateLegacyData(snapshot.data());}else{saveProfile(true);}state.cloud.ready=true;setSyncText(snapshot.metadata.fromCache?"Syncing…":"Synced");},syncError));listenCollection(state.cloud.logsRef,"logs",docs=>docs.sort((a,b)=>a.date.localeCompare(b.date)));listenCollection(state.cloud.notesRef,"journal",docs=>docs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)));listenCollection(state.cloud.plansRef,"plans",docs=>Object.fromEntries(docs.filter(doc=>doc.date).map(doc=>[doc.date,doc])));}
-function listenCollection(ref,stateKey,transform){state.cloud.unsubs.push(ref.onSnapshot({includeMetadataChanges:true},snapshot=>{state[stateKey]=transform(snapshot.docs.map(doc=>doc.data()));render();setSyncText(snapshot.metadata.fromCache?"Syncing…":"Synced");},syncError));}
-function syncError(error){console.error(error);setSyncText("Sync issue");showNotice("We couldn’t sync your latest changes.");}
-function mergeProfile(data){state.goalTarget=Number(data.goalTarget)||12;if(["light","dark","system"].includes(data.theme)&&!localStorage.getItem(STORE.theme)){state.theme=data.theme;applyTheme();}if(Number(data.schemaVersion||0)<2){state.logs=Array.isArray(data.logs)?data.logs:state.logs;state.journal=Array.isArray(data.journal)?data.journal:state.journal;state.plans=data.plans&&typeof data.plans==="object"?data.plans:state.plans;}render();}
-async function migrateLegacyData(data){if(state.cloud.migrating||Number(data.schemaVersion||0)>=2)return;state.cloud.migrating=true;try{const logs=Array.isArray(data.logs)?data.logs:[],notes=Array.isArray(data.journal)?data.journal:[],plans=data.plans&&typeof data.plans==="object"?Object.entries(data.plans):[];await writeInChunks(logs.filter(item=>item?.date).map(item=>()=>state.cloud.logsRef.doc(item.date).set(item,{merge:true})));await writeInChunks(notes.map((item,index)=>()=>state.cloud.notesRef.doc(item.id||`legacy-${item.createdAt||index}`).set({...item,id:item.id||`legacy-${item.createdAt||index}`},{merge:true})));await writeInChunks(plans.map(([date,plan])=>()=>state.cloud.plansRef.doc(date).set({...plan,date},{merge:true})));await state.cloud.profileRef.set({schemaVersion:2,migratedAt:Date.now(),goalTarget:Number(data.goalTarget)||state.goalTarget,theme:data.theme||state.theme},{merge:true});showNotice("Your existing training history was upgraded safely.");}catch(error){syncError(error);}finally{state.cloud.migrating=false;}}
-async function writeInChunks(writes){for(let index=0;index<writes.length;index+=100)await Promise.all(writes.slice(index,index+100).map(write=>write()));}
-function queueSync(){if(state.auth.isGuest||!state.cloud.profileRef)return;clearTimeout(state.cloud.timer);state.cloud.timer=setTimeout(()=>saveProfile(),450);}
-function saveProfile(immediate=false){if(!state.cloud.profileRef||state.auth.isGuest)return;setSyncText("Syncing…");const write=()=>state.cloud.profileRef.set({schemaVersion:2,goalTarget:state.goalTarget,theme:state.theme,updatedAt:Date.now()},{merge:true}).then(()=>setSyncText("Synced")).catch(syncError);if(immediate)write();else write();}
-function saveLog(entry){if(!state.cloud.logsRef)return;setSyncText("Syncing…");state.cloud.logsRef.doc(entry.date).set(entry,{merge:true}).then(()=>setSyncText("Synced")).catch(syncError);}
-function saveNote(note){if(!state.cloud.notesRef)return;setSyncText("Syncing…");state.cloud.notesRef.doc(note.id).set(note,{merge:true}).then(()=>setSyncText("Synced")).catch(syncError);}
-function savePlanRecord(date=key()){if(!state.cloud.plansRef)return;const plan=state.plans[date];if(!plan)return;setSyncText("Syncing…");state.cloud.plansRef.doc(date).set({...plan,date,updatedAt:Date.now()},{merge:true}).then(()=>setSyncText("Synced")).catch(syncError);}
-function setSyncText(text){els.syncStatusText.textContent=text;els.aboutSyncStatus.textContent=text==="Synced"?"Firebase synced":text;}
+  function onLogSaved(entry) {
+    // Award XP for gym day
+    const today = key();
+    const note = (state.journal || []).find(n => n.date === today);
+    const plan = state.plans?.[today];
+    const hasPlan = plan && plan.exercises && plan.exercises.length > 0;
+    const newAch = GL.gamification.awardXP(today, {
+      gym: entry.status === "Went",
+      note: !!(note?.text || entry.note),
+      plan: hasPlan,
+    });
+    // Show achievement toast
+    if (newAch && newAch.length) {
+      setTimeout(() => {
+        newAch.forEach(a => showToast(`${a.emoji} Achievement unlocked: ${a.label}!`));
+      }, 600);
+    }
+    if (!state.auth.isGuest) saveLog(entry);
+    render();
+  }
 
-function key(date=new Date()){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;}function getLog(date){return state.logs.find(item=>item.date===date);}function displayDate(date=key()){return new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});}
-function openEntry(status="Went",date=key()){if(guardGuest("log a day"))return;const entry=getLog(date);els.saveBtn.dataset.date=date;els.modalTitle.textContent=date===key()?"Log today":displayDate(date);els.statusSelect.value=status||entry?.status||"Went";[...els.workoutGroup.querySelectorAll("input")].forEach(input=>input.checked=Boolean(entry?.workoutType?.includes(input.value)));els.reasonInput.value=entry?.reason||"";updateEntryFields();els.entryModal.classList.remove("hidden");}
-function updateEntryFields(){const isWent=els.statusSelect.value==="Went",isMissed=els.statusSelect.value==="Missed";els.workoutWrap.classList.toggle("hidden",!isWent);els.reasonWrap.classList.toggle("hidden",!isMissed);}
-function closeEntry(){els.entryModal.classList.add("hidden");}
-function saveEntry(){if(guardGuest("save a check-in"))return;const date=els.saveBtn.dataset.date||key(),status=els.statusSelect.value,workoutType=[...els.workoutGroup.querySelectorAll("input:checked")].map(input=>input.value);if(status==="Went"&&!workoutType.length){showNotice("Choose at least one workout focus.");return;}const entry={date,status,workoutType:status==="Went"?workoutType:[],reason:status==="Missed"?els.reasonInput.value.trim():"",updatedAt:Date.now(),loggedAt:new Date().toISOString()};state.logs=state.logs.filter(item=>item.date!==date);state.logs.push(entry);state.logs.sort((a,b)=>a.date.localeCompare(b.date));closeEntry();saveLog(entry);render();showNotice("Check-in saved.");}
-function saveQuickNote(){if(guardGuest("save a note"))return;const text=els.quickNoteInput.value.trim();if(!text)return;const note={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:key(),text,createdAt:Date.now()};state.journal.unshift(note);els.quickNoteInput.value="";els.quickNoteWrap.classList.add("hidden");saveNote(note);renderJournal();showNotice("Note saved to your timeline.");}
+  function setTheme(theme) {
+    state.theme = theme;
+    applyTheme();
+    savePreferences();
+    if (!state.auth.isGuest) queueProfileSync();
+    renderSettings();
+  }
 
-function todayPlan(){const date=key();if(!state.plans[date])state.plans[date]={title:"",focus:"",notes:"",exercises:[]};return state.plans[date];}
-function savePlan(){if(guardGuest("save a plan"))return;const plan=todayPlan();plan.title=els.planTitle.value.trim();plan.focus=els.planFocus.value.trim();savePlanRecord();renderPlan();showNotice("Today’s plan saved.");}
-function addExercise(){if(guardGuest("add an exercise"))return;todayPlan().exercises.push({name:"",sets:"",reps:""});savePlanRecord();renderExercises();}
-function updateExercise(event){const input=event.target;if(!input.dataset.field)return;const plan=todayPlan(),item=plan.exercises[Number(input.dataset.index)];if(item){item[input.dataset.field]=input.value;savePlanRecord();}}
-function removeExercise(index){if(guardGuest("edit your workout"))return;todayPlan().exercises.splice(index,1);savePlanRecord();renderExercises();}
-function saveWorkoutNotes(){if(guardGuest("save workout notes"))return;todayPlan().notes=els.workoutNotes.value.trim();savePlanRecord();showNotice("Workout notes saved.");}
+  function saveGoal(target) {
+    state.goalTarget = Math.max(1, Math.min(31, target));
+    if (!state.auth.isGuest) queueProfileSync();
+    renderSettings();
+  }
 
-function render(){renderHero();renderStats();renderRecent();renderCalendar();renderPlan();renderJournal();renderSettings();if(state.activeTab==="analytics")requestAnimationFrame(renderCharts);}
-function renderHero(){const today=key(),entry=getLog(today),streak=currentStreak();els.heroDate.textContent=displayDate(today);els.heroStreak.textContent=`${streak} day ${streak===1?"streak":"streak"}`;els.heroStatus.textContent=entry?entry.status:"Not logged";els.heroSummary.textContent=entry?.status==="Went"?"Nice work. Your session is recorded.":entry?.status==="Rest"?"Recovery is part of the plan.":entry?.status==="Missed"?"Tomorrow is a fresh start.":"One small check-in is enough.";}
-function currentStreak(){const map=new Map(state.logs.map(item=>[item.date,item.status]));let cursor=new Date();cursor.setHours(12,0,0,0);if(!map.has(key(cursor)))cursor.setDate(cursor.getDate()-1);let total=0;for(;;){const status=map.get(key(cursor));if(status==="Went")total++;else if(status!=="Rest")break;cursor.setDate(cursor.getDate()-1);}return total;}
-function longestStreak(){let best=0,current=0,last=null;[...state.logs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(item=>{const date=new Date(`${item.date}T12:00:00`);if(last&&Math.round((date-last)/86400000)>1)current=0;if(item.status==="Went")current++;else if(item.status==="Missed")current=0;best=Math.max(best,current);last=date;});return best;}
-function renderStats(){const went=state.logs.filter(item=>item.status==="Went"),now=new Date(),monthWent=went.filter(item=>{const date=new Date(`${item.date}T12:00:00`);return date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth();}).length;const decided=state.logs.filter(item=>{const date=new Date(`${item.date}T12:00:00`);return date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth()&&(item.status==="Went"||item.status==="Missed");}).length;els.currentStreak.textContent=currentStreak();els.longestStreak.textContent=longestStreak();els.consistency.textContent=`${decided?Math.round(monthWent/decided*100):0}%`;els.totalDays.textContent=went.length;const insights=makeInsight(went);els.insightTitle.textContent=insights.title;els.insightText.textContent=insights.text;}
-// function makeInsight(went){if(went.length<4)return{title:"Your training pattern is forming.",text:"Log a few more workouts and Gym Log will surface meaningful trends—not noise."};const days=Array(7).fill(0);went.forEach(item=>days[new Date(`${item.date}T12:00:00`).getDay()]++);const index=days.indexOf(Math.max(...days)),day=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][index];return{title:`Most active on ${day}s.`,text:`You logged ${days[index]} session${days[index]===1?"":"s"} on ${day}s. Keep that rhythm in mind when you plan your week.`};}
-function renderRecent(){const recent=[...state.logs].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,5);if(!recent.length){els.recentLogs.innerHTML='<div class="activity-item"><div><strong>No activity yet</strong><p>Your last few check-ins will appear here.</p></div></div>';return;}els.recentLogs.innerHTML=recent.map(item=>`<button class="activity-item" data-date="${item.date}" type="button"><div><strong><i class="status-dot ${item.status.toLowerCase()}"></i>${item.status}</strong><p>${displayDate(item.date)}${item.workoutType?.length?` · ${item.workoutType.join(", ")}`:""}</p></div><span>›</span></button>`).join("");els.recentLogs.querySelectorAll("button").forEach(button=>button.onclick=()=>openDetail(button.dataset.date));}
-function renderCalendar(){const {year,month}=state.calendar,first=new Date(year,month,1),last=new Date(year,month+1,0),today=key();els.calendarLabel.textContent=first.toLocaleDateString(undefined,{month:"long",year:"numeric"});els.calendar.innerHTML=["S","M","T","W","T","F","S"].map(day=>`<div class="weekday">${day}</div>`).join("");for(let i=0;i<first.getDay();i++)els.calendar.insertAdjacentHTML("beforeend",'<div class="day-cell empty"></div>');for(let day=1;day<=last.getDate();day++){const date=key(new Date(year,month,day)),entry=getLog(date),className=entry?entry.status.toLowerCase():"",mark=entry?.status==="Went"?"✓":entry?.status==="Rest"?"−":entry?.status==="Missed"?"×":"";els.calendar.insertAdjacentHTML("beforeend",`<button type="button" class="day-cell ${className} ${date===today?"today":""}" data-date="${date}">${day}${mark?`<span class="mark">${mark}</span>`:""}</button>`);}els.calendar.querySelectorAll("button").forEach(button=>button.onclick=()=>openDetail(button.dataset.date));}
-function changeMonth(delta){let month=state.calendar.month+delta,year=state.calendar.year;if(month<0){month=11;year--;}if(month>11){month=0;year++;}state.calendar={year,month};renderCalendar();}
-function renderPlan(){const plan=todayPlan();els.planDate.textContent=displayDate();els.planTitle.value=plan.title||"";els.planFocus.value=plan.focus||"";els.workoutNotes.value=plan.notes||"";renderExercises();}
-function renderExercises(){const exercises=todayPlan().exercises;els.emptyExercises.classList.toggle("hidden",exercises.length>0);els.exerciseList.innerHTML=exercises.map((exercise,index)=>`<div class="exercise-row"><input data-index="${index}" data-field="name" value="${escape(exercise.name)}" placeholder="Exercise"><input data-index="${index}" data-field="sets" value="${escape(exercise.sets)}" inputmode="numeric" placeholder="Sets"><input data-index="${index}" data-field="reps" value="${escape(exercise.reps)}" inputmode="numeric" placeholder="Reps"><button data-remove="${index}" type="button" aria-label="Remove exercise">×</button></div>`).join("");}
-function renderJournal(){const notes=[...state.journal].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));els.journalList.innerHTML=notes.length?notes.map(note=>`<div class="journal-entry"><div><strong>${displayDate(note.date)}</strong><p>${escape(note.text)}</p></div><button data-note="${note.id}" type="button" aria-label="Delete note">×</button></div>`).join(""):'<div class="journal-entry"><div><strong>No notes yet</strong><p>Quick notes from Punch In become your timeline.</p></div></div>';els.journalList.querySelectorAll("button[data-note]").forEach(button=>button.onclick=()=>deleteNote(button.dataset.note));}
-function deleteNote(id){if(guardGuest("edit notes"))return;state.journal=state.journal.filter(note=>note.id!==id);if(state.cloud.notesRef)state.cloud.notesRef.doc(id).delete().catch(syncError);renderJournal();}
-function renderSettings(){els.goalInput.value=state.goalTarget;const now=new Date(),completed=state.logs.filter(item=>{const date=new Date(`${item.date}T12:00:00`);return item.status==="Went"&&date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth();}).length,percent=Math.min(100,Math.round(completed/state.goalTarget*100));els.goalText.textContent=`${completed} of ${state.goalTarget} gym days this month`;els.goalBar.style.width=`${percent}%`;els.reminderToggle.checked=state.reminder;}
-function saveGoal(){if(guardGuest("save a goal"))return;const target=Math.max(1,Math.min(31,Number(els.goalInput.value)||12));state.goalTarget=target;queueSync();renderSettings();showNotice("Monthly goal saved.");}
-function toggleReminder(){if(guardGuest("change reminders")){els.reminderToggle.checked=false;return;}state.reminder=els.reminderToggle.checked;savePreferences();if(state.reminder&&!("Notification"in window)){showNotice("Notifications are not supported in this browser.");return;}if(state.reminder)Notification.requestPermission().then(permission=>{if(permission!=="granted"){state.reminder=false;els.reminderToggle.checked=false;savePreferences();showNotice("Notification permission was not granted.");}else showNotice("Daily reminder enabled.");});else showNotice("Daily reminder turned off.");}
-function renderCharts(){if(typeof Chart==="undefined"||!els.monthlyChart)return;const text=getComputedStyle(document.body).getPropertyValue("--muted").trim(),accent=getComputedStyle(document.body).getPropertyValue("--accent").trim(),line=getComputedStyle(document.body).getPropertyValue("--line").trim();const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],data=Array(12).fill(0);state.logs.filter(item=>item.status==="Went").forEach(item=>data[new Date(`${item.date}T12:00:00`).getMonth()]++);if(monthlyChart)monthlyChart.destroy();monthlyChart=new Chart(els.monthlyChart,{type:"bar",data:{labels:months,datasets:[{data,backgroundColor:accent,borderRadius:7,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:text,font:{size:10}}},y:{beginAtZero:true,ticks:{precision:0,color:text},grid:{color:line}}}}});const categories=["Chest","Back","Legs","Shoulders","Arms","Cardio"],mix=categories.map(category=>state.logs.reduce((total,item)=>total+(item.status==="Went"&&item.workoutType?.includes(category)?1:0),0));if(workoutChart)workoutChart.destroy();workoutChart=new Chart(els.workoutChart,{type:"doughnut",data:{labels:categories,datasets:[{data:mix,backgroundColor:[accent,"#79A9D7","#fa8b76","#e6c86c","#a995ee","#64c6b4"],borderWidth:0,hoverOffset:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:text,boxWidth:9,font:{size:10}}}}}});}
-function openDetail(date){const entry=getLog(date);els.detailTitle.textContent=displayDate(date);els.editDetailBtn.dataset.date=date;els.editDetailBtn.classList.toggle("hidden",state.auth.isGuest);els.detailContent.innerHTML=entry?`<p><strong>${entry.status}</strong></p><p class="muted">${entry.status==="Went"?(entry.workoutType?.join(", ")||"Workout logged"):entry.reason||"No additional details."}</p>`:'<p class="muted">No check-in for this day.</p>';els.detailModal.classList.remove("hidden");}function closeDetail(){els.detailModal.classList.add("hidden");}
-function exportCSV(){if(guardGuest("export your data"))return;const rows=[["Date","Status","Workout focus","Reason"],...state.logs.map(item=>[item.date,item.status,(item.workoutType||[]).join(" | "),item.reason||""])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");link.href=url;link.download="gym-log-export.csv";link.click();URL.revokeObjectURL(url);}
-function escape(value=""){const div=document.createElement("div");div.textContent=value;return div.innerHTML;}
-function registerServiceWorker(){if("serviceWorker"in navigator)navigator.serviceWorker.register("./service-worker.js").catch(()=>{});}
-init();
+  function exportCSV() {
+    if (!state.logs.length) { showToast("Nothing to export yet."); return; }
+    const rows = [["Date", "Status", "Workout focus", "Reason"], ...state.logs.map((item) => [item.date, item.status, (item.workoutType || []).join(" | "), item.reason || ""])];
+    const csv = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "gym-log-export.csv"; link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function toggleReminder(checked) {
+    state.reminder = checked;
+    savePreferences();
+    if (state.reminder && !("Notification" in window)) { showToast("Notifications aren't supported in this browser."); return; }
+    if (state.reminder) {
+      Notification.requestPermission().then((permission) => {
+        if (permission !== "granted") { state.reminder = false; $("reminderToggle").checked = false; savePreferences(); showToast("Notification permission was not granted."); }
+        else showToast("Daily reminder enabled.");
+      });
+    } else showToast("Daily reminder turned off.");
+  }
+
+  function bindStaticUI() {
+    $("weekdayRow").innerHTML = weekdayLabelsHTML();
+    initNav();
+    $("fabLog").onclick = () => openLogSheet(getLog(key())?.status || "Went", key());
+    [$("themeSystemBtn"), $("themeLightBtn"), $("themeDarkBtn")].forEach((btn) => btn.onclick = () => setTheme(btn.dataset.theme));
+    $("prevMonthBtn").onclick = () => changeHistoryMonth(-1, () => renderProgress({ onOpenDetail: openDetailSheet }));
+    $("nextMonthBtn").onclick = () => changeHistoryMonth(1, () => renderProgress({ onOpenDetail: openDetailSheet }));
+    $("signOutBtn").onclick = async () => {
+      if (state.auth.isGuest) { state.auth.isGuest = false; setAuthMode("signin"); showGate(); return; }
+      try { await signOutUser(); } catch { showToast("Couldn't sign out. Try again."); }
+    };
+    $("goalMinus").onclick = () => saveGoal(state.goalTarget - 1);
+    $("goalPlus").onclick = () => saveGoal(state.goalTarget + 1);
+    $("reminderToggle").onchange = (e) => toggleReminder(e.target.checked);
+    $("exportAllBtn").onclick = exportCSV;
+    $("sheetScrim").onclick = closeAllSheets;
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAllSheets(); });
+
+    initLogSheet({ onSave: onLogSaved, getStreakAfterSave: currentStreak });
+    initDetailSheet({ onEditRequest: (date) => openLogSheet(getLog(date)?.status || "Went", date) });
+    initPlanSheet({ onSave: () => {
+      const today = key();
+      const plan = state.plans?.[today];
+      const hasPlan = plan && plan.exercises && plan.exercises.length > 0;
+      if (hasPlan) {
+        GL.gamification.awardXP(today, { plan: true });
+      }
+      if (!state.auth.isGuest) savePlanRecord(today, todayPlan());
+      render();
+    }});
+    initSettingsSheet();
+    initAuthGate({ onGuestEnter: enterGuest });
+
+    // Home brand only visible on home tab
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      const orig = btn.onclick;
+      btn.addEventListener("click", () => {
+        const isHome = btn.dataset.tab === "home";
+        const brand = document.querySelector(".home-brand-only");
+        if (brand) brand.style.visibility = isHome ? "visible" : "hidden";
+      });
+    });
+  }
+
+  function enterGuest() {
+    state.auth = { ...state.auth, user: null, isGuest: true };
+    state.logs = []; state.journal = []; state.plans = {}; state.goalTarget = 12;
+    showApp();
+    render();
+  }
+
+  function enterApp(user) {
+    state.auth = { ...state.auth, user, isGuest: false };
+    state.logs = []; state.journal = []; state.plans = {}; state.cloud.ready = false;
+    showApp();
+    initSync(user);
+    render();
+  }
+
+  function startFirebase() {
+    configureSync({
+      onStatus: (text) => { $("syncStatusText").textContent = text; },
+      onError: () => showToast("We couldn't sync your latest changes."),
+      onDataChange: render,
+    });
+    initAuth(enterApp, showGate, (message) => { showGate(); $("authError").textContent = message; $("authError").classList.remove("hidden"); });
+  }
+
+  function registerServiceWorker() {
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    }
+  }
+
+  function init() {
+    loadPreferences();
+    applyTheme();
+    bindStaticUI();
+    startFirebase();
+    registerServiceWorker();
+    // Auto-schedule notification if previously set
+    setTimeout(() => { try { tryAutoSchedule(); } catch {} }, 1000);
+    render();
+  }
+
+  init();
+})();

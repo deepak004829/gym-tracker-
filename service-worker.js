@@ -1,19 +1,34 @@
-const CACHE_NAME = "gym-log-v11";
+const CACHE_NAME = "gym-log-v14";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./app.js",
   "./firebase-config.js",
   "./manifest.json",
+  "./app.js",
+  "./store.js",
+  "./date.js",
+  "./dom.js",
+  "./auth.js",
+  "./sync.js",
+  "./nav.js",
+  "./toast.js",
+  "./sheet.js",
+  "./icons.js",
+  "./confetti.js",
+  "./log-sheet.js",
+  "./detail-sheet.js",
+  "./plan-sheet.js",
+  "./settings-sheet.js",
+  "./auth-gate.js",
+  "./home.js",
+  "./progress.js",
   "./icon-180.png",
   "./icon-192.png",
   "./icon-512.png",
   "./icon-512-maskable.png",
   "./splash-1170x2532.png",
   "./splash-1284x2778.png",
-  "./hero-dark.jpg",
-  "./hero-light.jpg",
 ];
 
 self.addEventListener("install", (event) => {

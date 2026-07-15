@@ -1,61 +1,284 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#10130f"><meta name="description" content="A private, focused gym tracker.">
-  <title>Gym Log</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png">
-  <link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="stylesheet" href="styles.css"><script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script><script src="firebase-config.js" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d0f">
+<meta name="description" content="A private, focused gym tracker.">
+<title>Gym Log</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
+<script src="firebase-config.js" defer></script>
 </head>
 <body>
-  <div id="authGate" class="auth-gate">
-    <div class="auth-card">
-      <img src="icon-192.png" class="auth-icon" alt=""><p class="eyebrow">GYM LOG</p><h1>Build a habit<br>you can trust.</h1><p class="auth-copy" id="authSubcopy">Sign in to keep your workouts in sync.</p>
-      <div class="auth-switch"><button id="authTabSignin" class="active" type="button">Sign in</button><button id="authTabSignup" type="button">Create account</button></div>
-      <form id="authForm"><label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" placeholder="6+ characters" minlength="6" required></label><label id="authConfirmLabel" class="hidden">Confirm password<input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" minlength="6"></label><p id="authError" class="form-error hidden" role="alert"></p><button id="authSubmitBtn" class="button primary" type="submit">Sign in</button></form>
-      <button id="authForgotBtn" class="text-button" type="button">Forgot password?</button><div class="or">or</div><button id="authGuestBtn" class="button secondary" type="button">Skip for now</button><p class="fine-print">Preview is view-only. Create an account to save.</p>
+
+<!-- ============================== AUTH GATE ============================== -->
+<div id="authGate" class="auth-gate">
+  <div class="auth-card">
+    <img src="icon-192.png" alt="">
+    <p class="eyebrow">GYM LOG</p>
+    <h1>Build a habit<br>you can trust.</h1>
+    <p class="auth-copy" id="authSubcopy">Sign in to keep your workouts in sync.</p>
+    <div class="auth-switch">
+      <button id="authTabSignin" class="active" type="button">Sign in</button>
+      <button id="authTabSignup" type="button">Create account</button>
     </div>
+    <form id="authForm">
+      <label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+      <label>Password<input id="authPassword" type="password" autocomplete="current-password" placeholder="6+ characters" minlength="6" required></label>
+      <label id="authConfirmLabel" class="hidden">Confirm password<input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" minlength="6"></label>
+      <p id="authError" class="form-error hidden" role="alert"></p>
+      <button id="authSubmitBtn" class="btn primary full" type="submit">Sign in</button>
+    </form>
+    <button id="authForgotBtn" class="text-btn" type="button" style="display:block;margin:12px auto 0;">Forgot password?</button>
+    <div class="auth-or">or</div>
+    <button id="authGuestBtn" class="btn secondary full" type="button">Skip for now</button>
+    <p class="fine-print">Preview is view-only. Create an account to save.</p>
+  </div>
+</div>
+
+<!-- ============================== APP SHELL ============================== -->
+<main id="appShell" class="app-shell hidden">
+  <header class="topbar">
+    <div class="brand home-brand-only"><img src="icon-192.png" alt=""><span>Gym Log</span></div>
+    <div class="topbar-actions">
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" style="stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2.1 2.1 0 1 1-2.97 2.97l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V20a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2.1 2.1 0 1 1-2.97-2.97l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.1 2.1 0 1 1 2.97-2.97l.06.06a1.7 1.7 0 0 0 1.87.34H10.3a1.7 1.7 0 0 0 1-1.55V4a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.1 2.1 0 1 1 2.97 2.97l-.06.06a1.7 1.7 0 0 0-.34 1.87V10.3a1.7 1.7 0 0 0 1.55 1H20a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg></button>
+    </div>
+  </header>
+  <div id="guestBanner" class="guest-banner hidden"><span>Preview mode — changes won't be saved.</span><button id="guestSignUpBtn" type="button">Create account</button></div>
+
+  <!-- ---------- HOME ---------- -->
+  <section id="panel-home" class="screen">
+    <div class="home-hero">
+      <div class="streak-ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 104 104">
+          <g class="ring-center">
+            <circle class="ring-track" cx="52" cy="52" r="46"></circle>
+            <circle id="ringFill" class="ring-fill" cx="52" cy="52" r="46"></circle>
+          </g>
+          <!-- Badge inside ring -->
+          <g id="ringBadgeGroup" transform="rotate(90 52 52)" style="pointer-events:none"></g>
+        </svg>
+        <div class="ring-label">
+          <p class="eyebrow">CURRENT STREAK</p>
+          <div class="ring-count"><span id="ringCount" data-value="0">0</span><small>days</small></div>
+          <p class="ring-sub" id="ringSub">One small check-in is enough.</p>
+        </div>
+      </div>
+      <div class="today-status-row">
+        <button class="status-chip" data-status="Went" type="button"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/></svg>Went</button>
+        <button class="status-chip" data-status="Rest" type="button"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Rest</button>
+        <button class="status-chip" data-status="Missed" type="button"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>Missed</button>
+      </div>
+      <div id="weekStrip" class="week-strip"></div>
+    </div>
+
+    <div id="planPreviewCard" class="card plan-preview-card">
+      <div class="icon"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2.4"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="M9 11h6M9 15h6"/></svg></div>
+      <div><h4 id="planPreviewTitle">Plan today's workout</h4><p id="planPreviewSub">Add exercises, sets, and reps</p></div>
+    </div>
+
+    <div id="achievementBanner" class="achievement-banner hidden">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v1a4 4 0 0 0 3.5 4M17 5h3v1a4 4 0 0 1-3.5 4M9.5 17.5h5M12 13v4.5M8 21h8"/></svg>
+      <div><h4>Milestone reached</h4><p id="achievementText">Streak milestone!</p></div>
+    </div>
+
+    <!-- Recent Activity (last 3 days only) -->
+    <section class="section">
+      <div class="section-head"><div><p class="eyebrow">RECENT</p><h2>Activity</h2></div></div>
+      <div id="recentActivity" class="activity-list"></div>
+    </section>
+
+    <!-- Gamification Section (XP + Achievements) -->
+    <section class="section" id="gamificationSection"></section>
+
+    <!-- Daily Missions -->
+    <section class="section" id="dailyMissionsSection"></section>
+  </section>
+
+  <!-- ---------- PROGRESS (calendar + stats) ---------- -->
+  <section id="panel-progress" class="screen hidden">
+    <div class="section-head" style="margin-top:4px">
+      <div><p class="eyebrow">YOUR MONTH</p><h2 id="historyLabel">—</h2></div>
+      <div class="month-nav"><button id="prevMonthBtn" type="button" aria-label="Previous month">‹</button><button id="nextMonthBtn" type="button" aria-label="Next month">›</button></div>
+    </div>
+    <div class="card heatmap-card">
+      <div class="weekday-row" id="weekdayRow"></div>
+      <div id="heatGrid" class="heat-grid" aria-label="Monthly calendar"></div>
+      <div class="heat-legend">
+        <span><i class="went"></i>Went</span>
+        <span><i class="rest"></i>Rest</span>
+        <span><i class="missed"></i>Missed</span>
+        <span><i class="holiday-dot-legend"></i>Holiday</span>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">THE SIGNAL, NOT THE NOISE</p><h2>Insights</h2></div></div>
+    <div class="metric-grid">
+      <article class="metric-card"><div class="icon" style="background:var(--ember-soft);color:var(--ember)"><svg viewBox="0 0 24 24"><path d="M12 2c1 4-4 5-4 9a4 4 0 0 0 8 0c0-1.2-.5-2-1-2.8.8.2 3 1.6 3 5a6 6 0 0 1-12 0C6 8 12 6 12 2Z"/></svg></div><span>Current streak</span><strong id="statStreak" class="num" data-value="0">0</strong></article>
+      <article class="metric-card"><div class="icon" style="background:var(--spark);color:var(--spark-ink)"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v1a4 4 0 0 0 3.5 4M17 5h3v1a4 4 0 0 1-3.5 4M9.5 17.5h5M12 13v4.5M8 21h8"/></svg></div><span>Best streak</span><strong id="statBest" class="num" data-value="0">0</strong></article>
+      <article class="metric-card"><div class="icon" style="background:var(--recovery-soft);color:var(--recovery)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg></div><span>Consistency</span><strong id="statConsistency" class="num">0%</strong></article>
+      <article class="metric-card"><div class="icon" style="background:var(--surface-3);color:var(--text)"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="4"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg></div><span>Total gym days</span><strong id="statTotal" class="num" data-value="0">0</strong></article>
+      <article class="metric-card"><div class="icon" style="background:var(--ember-soft);color:var(--ember)"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg></div><span>Avg per week</span><strong id="statFrequency" class="num">0</strong></article>
+      <article class="metric-card"><div class="icon" style="background:var(--spark);color:var(--spark-ink)"><svg viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14.1l-3-3"/></svg></div><span>Monthly goal</span><strong id="statGoal" class="num">0%</strong></article>
+    </div>
+
+    <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">MUSCLE FOCUS</p><h2>Split Mix</h2></div></div>
+    <div class="card chart-card">
+      <div id="muscleBars"></div>
+    </div>
+
+    <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">ALL-TIME</p><h2>Monthly Volume</h2></div></div>
+    <div class="card chart-card">
+      <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+    </div>
+  </section>
+</main>
+
+<!-- ============================== FAB ============================== -->
+<nav id="tabBar" class="tab-bar hidden">
+  <div class="tab-bar-inner">
+    <button id="tabHome" class="tab-btn active" data-tab="home" type="button">
+      <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5Z"/><path d="M9 21V12h6v9"/></svg>
+      Home
+    </button>
+    <button id="fabLog" class="fab" type="button" aria-label="Log today">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button id="tabProgress" class="tab-btn" data-tab="progress" type="button">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Progress
+    </button>
+  </div>
+</nav>
+
+<div id="sheetScrim" class="sheet-scrim"></div>
+<div id="toastEl" class="notice"></div>
+<canvas id="confettiCanvas"></canvas>
+
+<!-- ============================== LOG SHEET ============================== -->
+<div id="logSheet" class="sheet hidden" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <button id="logSheetClose" class="sheet-close" type="button">×</button>
+  <p class="eyebrow">DAILY CHECK-IN</p>
+  <h2 id="logSheetTitle">Log today</h2>
+  <p class="sub">Takes less than 10 seconds.</p>
+  <div class="status-picker">
+    <button type="button" class="status-pick" data-status="Went"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/></svg>Went</button>
+    <button type="button" class="status-pick" data-status="Rest"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Rest</button>
+    <button type="button" class="status-pick" data-status="Missed"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>Missed</button>
+  </div>
+  <div id="focusSection">
+    <label style="font-size:.78rem;font-weight:750;color:var(--text-dim)">Focus</label>
+    <div id="focusGrid" class="focus-grid" style="margin-top:8px"></div>
+  </div>
+  <div id="reasonField" class="field hidden"><label>What got in the way?</label><input id="logReasonInput" placeholder="Optional"></div>
+  <button id="logNoteToggle" type="button" class="text-btn" style="margin-top:14px">+ Add a quick note</button>
+  <div id="logNoteWrap" class="field hidden"><textarea id="logNoteInput" rows="2" placeholder="How did it feel?"></textarea></div>
+  <div class="sheet-actions">
+    <button id="logSheetCancel" class="btn secondary" type="button">Cancel</button>
+    <button id="logSheetSave" class="btn primary" type="button">Save</button>
+  </div>
+</div>
+
+<!-- ============================== DETAIL SHEET ============================== -->
+<div id="detailSheet" class="sheet hidden" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <button id="detailSheetClose" class="sheet-close" type="button">×</button>
+  <p class="eyebrow">DAILY RECORD</p>
+  <h2 id="detailSheetTitle">Day details</h2>
+  <div id="detailSheetBody" style="margin-top:14px"></div>
+  <div class="sheet-actions"><button id="detailEditBtn" class="btn primary full" type="button">Edit entry</button></div>
+</div>
+
+<!-- ============================== PLAN SHEET ============================== -->
+<div id="planSheet" class="sheet hidden" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <button id="planSheetClose" class="sheet-close" type="button">×</button>
+  <p class="eyebrow">PLAN &amp; LOG</p>
+  <h2>Today's workout</h2>
+  <p class="sub" id="planSheetDate">—</p>
+  <div class="card plan-editor-card">
+    <input id="planTitleInput" class="plan-title" placeholder="e.g. Lower body strength">
+    <textarea id="planFocusInput" class="plan-focus" rows="2" placeholder="Focus, intention, or warm-up…"></textarea>
+  </div>
+  <div class="section-head" style="margin-top:20px"><h3>Exercises</h3></div>
+  <div id="exerciseCards" class="exercise-cards"></div>
+  <p id="emptyExercises" class="empty-copy muted" style="font-size:.82rem;margin:10px 0">Add exercises as you move through your workout.</p>
+  <button id="addExerciseBtn" class="add-exercise-btn" type="button" style="margin-top:10px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:2.2"><path d="M12 5v14M5 12h14"/></svg>Add exercise</button>
+  <div class="field"><label>Notes</label><textarea id="planNotesInput" rows="3" placeholder="Wins, cues, energy, recovery…"></textarea></div>
+  <div class="sheet-actions"><button id="planSheetDone" class="btn primary full" type="button">Done</button></div>
+</div>
+
+<!-- ============================== SETTINGS SHEET ============================== -->
+<div id="settingsSheet" class="sheet hidden" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <button id="settingsSheetClose" class="sheet-close" type="button">×</button>
+  <p class="eyebrow">PREFERENCES</p>
+  <h2>Settings</h2>
+  <div class="profile-header"><div class="avatar-lg" id="profileAvatar">G</div><div><strong id="profileName">—</strong><span id="profileSub">—</span></div></div>
+
+  <div class="list-group">
+    <div class="list-row"><span>Firebase sync</span><span id="syncStatusText" class="muted">Connecting…</span></div>
+    <button id="signOutBtn" class="list-row danger" type="button"><span class="left"><svg viewBox="0 0 24 24"><path d="M9 21H5.5a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 5.5 3H9"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Sign out</span></button>
   </div>
 
-  <main id="appShell" class="app-shell hidden">
-    <header class="topbar"><div><p class="eyebrow" id="accountEyebrow">YOUR TRAINING</p><h1>Gym Log</h1></div><button id="themeToggle" class="icon-button" aria-label="Change theme">◐</button></header>
-    <div id="guestBanner" class="guest-banner hidden"><span>Preview mode — your changes will not be saved.</span><button id="guestSignUpBtn" type="button">Create account</button></div><div id="notice" class="notice hidden" role="status"></div>
+  <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:24px 0 8px">THEME</p>
+  <div class="segmented" role="group" aria-label="Theme">
+    <button id="themeSystemBtn" data-theme="system" type="button">System</button>
+    <button id="themeLightBtn" data-theme="light" type="button">Light</button>
+    <button id="themeDarkBtn" data-theme="dark" type="button">Dark</button>
+  </div>
 
-    <section id="panel-punch" class="screen">
-      <section class="hero-card"><div class="hero-content"><p class="eyebrow inverse">TODAY</p><div class="hero-title"><h2 id="heroDate">—</h2><span id="heroStatus" class="status-pill">Not logged</span></div><p id="heroSummary">One small check-in is enough.</p><div class="streak-line"><span class="flame">✦</span><strong id="heroStreak">0 day streak</strong><span>Keep the rhythm.</span></div></div><div class="punch-actions"><button id="wentBtn" class="punch-action went" type="button"><b>✓</b>Went</button><button id="restBtn" class="punch-action rest" type="button"><b>−</b>Rest</button><button id="missedBtn" class="punch-action missed" type="button"><b>×</b>Missed</button></div></section>
-      <section class="quick-note"><button id="quickNoteToggle" class="section-button" type="button"><span>✎</span> Add a quick note <i>+</i></button><div id="quickNoteWrap" class="quick-note-form hidden"><textarea id="quickNoteInput" rows="3" placeholder="How did today feel?"></textarea><button id="quickNoteSave" class="button primary" type="button">Save note</button></div></section>
-      <section class="content-section"><div class="section-heading"><div><p class="eyebrow">RECENT</p><h2>Activity</h2></div></div><div id="recentLogs" class="activity-list"></div></section>
-      <section class="content-section calendar-section"><div class="section-heading"><div><p class="eyebrow">YOUR MONTH</p><h2 id="calendarLabel">—</h2></div><div class="month-controls"><button id="prevMonthBtn" type="button" aria-label="Previous month">‹</button><button id="nextMonthBtn" type="button" aria-label="Next month">›</button></div></div><div id="calendar" class="calendar" aria-label="Monthly calendar"></div><div class="calendar-legend"><span><i class="went-dot"></i>Went</span><span><i class="rest-dot"></i>Rest</span><span><i class="missed-dot"></i>Missed</span></div></section>
-    </section>
+  <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:0 0 8px">MONTHLY GOAL</p>
+  <div class="card goal-card">
+    <p class="muted" id="goalText" style="margin:0 0 2px;font-size:.82rem">—</p>
+    <div class="stepper">
+      <button id="goalMinus" type="button" aria-label="Decrease goal">−</button>
+      <strong id="goalCount" class="num">12</strong>
+      <button id="goalPlus" type="button" aria-label="Increase goal">+</button>
+      <span class="muted" style="font-size:.78rem">days / month</span>
+    </div>
+    <div class="goal-track"><div id="goalBar"></div></div>
+  </div>
 
-    <section id="panel-plan-log" class="screen hidden">
-      <div class="screen-title"><p class="eyebrow">PERSONAL NOTEBOOK</p><h2>Plan &amp; Log</h2><p>Everything you need for a thoughtful session.</p></div>
-      <section class="notebook-card"><div class="section-heading"><h3>Today’s workout plan</h3><span id="planDate" class="muted"></span></div><input id="planTitle" class="plan-title" placeholder="e.g. Lower body strength"><textarea id="planFocus" rows="2" placeholder="Focus, intention, or warm-up…"></textarea><button id="savePlanBtn" class="button secondary" type="button">Save today’s plan</button></section>
-      <section class="notebook-card"><div class="section-heading"><h3>Exercise log</h3><button id="addExerciseBtn" class="text-button" type="button">+ Add exercise</button></div><div id="exerciseList" class="exercise-list"></div><p id="emptyExercises" class="empty-copy">Add exercises as you move through your workout.</p></section>
-      <section class="notebook-card"><div class="section-heading"><h3>Workout notes</h3></div><textarea id="workoutNotes" rows="4" placeholder="Wins, cues, energy, recovery…"></textarea><button id="saveWorkoutNotesBtn" class="button secondary" type="button">Save workout notes</button></section>
-      <section class="content-section"><div class="section-heading"><div><p class="eyebrow">REFLECTIONS</p><h3>Journal timeline</h3></div></div><div id="journalList" class="journal-list"></div></section>
-    </section>
+  <!-- Notification section -->
+  <div id="notifTimeSection"></div>
 
-    <section id="panel-analytics" class="screen hidden">
-      <div class="screen-title"><p class="eyebrow">THE SIGNAL, NOT THE NOISE</p><h2>Analytics</h2><p>Your training at a glance.</p></div>
-      <div class="metric-grid"><article><span>Current streak</span><strong id="currentStreak">0</strong><small>days</small></article><article><span>Best streak</span><strong id="longestStreak">0</strong><small>days</small></article><article><span>Consistency</span><strong id="consistency">0%</strong><small>this month</small></article><article><span>Total gym days</span><strong id="totalDays">0</strong><small>all time</small></article></div>
-      <section class="chart-card"><div class="section-heading"><h3>Monthly progress</h3><span class="muted">Gym days</span></div><div class="chart-wrap"><canvas id="monthlyChart"></canvas></div></section><section class="chart-card"><div class="section-heading"><h3>Workout mix</h3><span class="muted">By focus</span></div><div class="chart-wrap"><canvas id="workoutChart"></canvas></div></section>
-      <!-- <section class="insight-card"><div class="insight-mark">✦</div><div><p class="eyebrow">FUTURE AI INSIGHTS</p><h3 id="insightTitle">Your training pattern is forming.</h3><p id="insightText">Log a few workouts and Gym Log will surface meaningful trends—not noise.</p></div></section> -->
-    </section>
+  <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:24px 0 8px">OTHER</p>
+  <div class="list-group">
+    <div class="list-row"><span class="left"><svg viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10Z"/><path d="M10 19.5a2 2 0 0 0 4 0"/></svg>Daily reminder (legacy)</span><label class="switch"><input id="reminderToggle" type="checkbox"><span class="track"></span></label></div>
+    <button id="exportAllBtn" class="list-row" type="button"><span class="left"><svg viewBox="0 0 24 24"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 19.5h16"/></svg>Export CSV</span><span class="chev">›</span></button>
+    <div class="list-row"><span>Version</span><span class="muted" id="appVersionText">4.0.0</span></div>
+  </div>
+</div>
 
-    <section id="panel-settings" class="screen hidden"><div class="screen-title"><p class="eyebrow">PREFERENCES</p><h2>Settings</h2></div>
-      <p class="settings-label">ACCOUNT</p><section class="settings-group"><div class="settings-row account-row"><div class="avatar" id="accountAvatar">G</div><div><strong id="accountEmailLine">—</strong><span id="accountSubStatus">—</span></div></div><div class="settings-row"><span>Firebase sync</span><span id="syncStatusText" class="sync-state">Connecting…</span></div><button id="signOutBtn" class="settings-row danger-row" type="button">Sign out</button></section>
-      <p class="settings-label">THEME</p><section class="settings-group"><div class="theme-choice" role="group" aria-label="Theme"><button id="themeSystemBtn" data-theme="system" type="button">System</button><button id="themeLightBtn" data-theme="light" type="button">Light</button><button id="themeDarkBtn" data-theme="dark" type="button">Dark</button></div></section>
-      <p class="settings-label">GYM GOAL</p><section class="settings-group goal-group"><label>Target days per month<input id="goalInput" type="number" min="1" max="31" inputmode="numeric"></label><button id="saveGoalBtn" class="button primary" type="button">Save goal</button><p id="goalText" class="muted"></p><div class="goal-track"><div id="goalBar"></div></div></section>
-      <p class="settings-label">REMINDERS</p><section class="settings-group"><div class="settings-row"><div><strong>Daily workout reminder</strong><span>Check in at 8:00 PM</span></div><label class="switch"><input id="reminderToggle" type="checkbox"><span></span></label></div></section>
-      <p class="settings-label">EXPORT</p><section class="settings-group"><button id="exportAllBtn" class="settings-row" type="button">Export CSV <span>›</span></button></section>
-      <p class="settings-label">ABOUT</p><section class="settings-group"><div class="settings-row"><span>App version</span><span>2.0.0</span></div><div class="settings-row"><span>Data</span><span id="aboutSyncStatus">Firebase synced</span></div></section>
-    </section>
-  </main>
-
-  <nav id="tabBar" class="tab-bar hidden" aria-label="Main navigation"><button class="active" data-tab="punch" type="button"><b>◫</b><span>Punch In</span></button><button data-tab="plan-log" type="button"><b>✎</b><span>Plan &amp; Log</span></button><button data-tab="analytics" type="button"><b>▥</b><span>Analytics</span></button><button data-tab="settings" type="button"><b>⚙</b><span>Settings</span></button></nav>
-  <div id="entryModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><button id="closeEntryBtn" class="close" type="button">×</button><p class="eyebrow">DAILY CHECK-IN</p><h2 id="modalTitle">Log today</h2><label>Status<select id="statusSelect"><option value="Went">Went</option><option value="Rest">Rest day</option><option value="Missed">Missed</option></select></label><div id="workoutWrap"><label>Workout focus</label><div id="workoutGroup" class="tag-grid"><label><input type="checkbox" value="Chest">Chest</label><label><input type="checkbox" value="Back">Back</label><label><input type="checkbox" value="Legs">Legs</label><label><input type="checkbox" value="Shoulders">Shoulders</label><label><input type="checkbox" value="Arms">Arms</label><label><input type="checkbox" value="Cardio">Cardio</label></div></div><label id="reasonWrap" class="hidden">What got in the way?<input id="reasonInput" placeholder="Optional"></label><div class="modal-actions"><button id="cancelBtn" class="button secondary" type="button">Cancel</button><button id="saveBtn" class="button primary" type="button">Save check-in</button></div></div></div>
-  <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><button id="closeDetailBtn" class="close" type="button">×</button><p class="eyebrow">DAILY RECORD</p><h2 id="detailTitle">Day details</h2><div id="detailContent"></div><div class="modal-actions"><button id="editDetailBtn" class="button primary" type="button">Edit entry</button></div></div></div>
-  <script src="app.js" defer></script>
-</body></html>
+<script src="dom.js" defer></script>
+<script src="date.js" defer></script>
+<script src="store.js" defer></script>
+<script src="auth.js" defer></script>
+<script src="sync.js" defer></script>
+<script src="icons.js" defer></script>
+<script src="toast.js" defer></script>
+<script src="sheet.js" defer></script>
+<script src="confetti.js" defer></script>
+<script src="nav.js" defer></script>
+<script src="auth-gate.js" defer></script>
+<script src="log-sheet.js" defer></script>
+<script src="detail-sheet.js" defer></script>
+<script src="plan-sheet.js" defer></script>
+<script src="gamification.js" defer></script>
+<script src="settings-sheet.js" defer></script>
+<script src="home.js" defer></script>
+<script src="progress.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
