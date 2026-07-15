@@ -95,10 +95,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .section-head h2,.section-head h3{margin:0;font-family:var(--font-display);font-weight:800;letter-spacing:-.02em;font-size:1.05rem}
 .section-head .link-btn{font-size:.78rem;font-weight:800;color:var(--ember)}
 
-/* toast / notice */
+/* toast / notice
 .notice{position:fixed;left:50%;top:calc(var(--safe-t) + 12px);transform:translate(-50%,-140%);z-index:80;background:var(--ink-900);color:#fff;padding:11px 18px;border-radius:var(--radius-pill);font-size:.82rem;font-weight:650;box-shadow:var(--shadow-2);transition:transform var(--dur-2) var(--ease-spring),opacity var(--dur-2) var(--ease-spring),visibility 0s linear var(--dur-2);max-width:90vw;text-align:center;opacity:0;visibility:hidden}
 .notice.show{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform var(--dur-2) var(--ease-spring),opacity var(--dur-2) var(--ease-spring),visibility 0s}
-body.dark .notice{background:var(--surface-2);border:1px solid var(--line)}
+body.dark .notice{background:var(--surface-2);border:1px solid var(--line)} */
 
 /* skeletons */
 .skel{position:relative;overflow:hidden;background:var(--surface-2);border-radius:var(--radius-sm)}
