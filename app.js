@@ -146,7 +146,7 @@
   function startFirebase() {
     configureSync({
       onStatus: (text) => { $("syncStatusText").textContent = text; },
-      onError: () => showToast("We couldn't sync your latest changes."),
+      // onError: () => showToast("We couldn't sync your latest changes."),,
       onDataChange: render,
     });
     initAuth(enterApp, showGate, (message) => { showGate(); $("authError").textContent = message; $("authError").classList.remove("hidden"); });
