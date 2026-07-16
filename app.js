@@ -24,15 +24,32 @@
     renderHome({ onQuickStatus: handleQuickStatus, onOpenDetail: openDetailSheet });
     renderProgress({ onOpenDetail: openDetailSheet });
     renderPlanner();
+    renderXpBadge();
     if (!$("settingsSheet").classList.contains("hidden")) renderSettings();
+  }
+
+  function renderXpBadge() {
+    const badge = $("topbarXpBadge");
+    if (!badge) return;
+    const totalXP = GL.gamification.getData().totalXP;
+    badge.textContent = `${totalXP} XP`;
+    badge.classList.remove("hidden");
   }
 
   function handleQuickStatus(status) {
     openLogSheet(status, key());
   }
 
-  function onLogSaved(entry) {
+  function onLogSaved(entry, note) {
     if (!state.auth.isGuest) saveLog(entry);
+    const today = key();
+    const gained = GL.gamification.awardXP(entry.date, {
+      attendance: entry.status === "Went",
+      note: !!note && entry.date === today,
+    });
+    if (gained) showToast(`+${gained} XP`);
+    const newAch = GL.gamification.checkAchievements();
+    newAch.forEach((a) => showToast(`🏆 Achievement unlocked: ${a.label}`));
     render();
   }
 
@@ -87,7 +104,7 @@
         id: "default-cardio-warmup",
         name: "🏃 Cardio Warm-Up",
         sets: "1",
-        reps: "10 min",
+        reps: "5 min",
         weight: "",
         done: false,
         type: "cardio",
@@ -258,8 +275,17 @@
   function savePlan() {
     _plannerDirty = false;
     const today = key();
-    if (!state.auth.isGuest) savePlanRecord(today, todayPlan());
-    showToast("Workout plan saved.");
+    const plan = todayPlan();
+    if (!state.auth.isGuest) savePlanRecord(today, plan);
+    const hasRealExercises = (plan.exercises || []).some((ex) => !ex.isDefaultCardio);
+    if (hasRealExercises) {
+      const gained = GL.gamification.awardXP(today, { plan: true });
+      if (gained) showToast(`Workout plan saved. +${gained} XP`);
+      else showToast("Workout plan saved.");
+      GL.gamification.checkAchievements().forEach(a => showToast(`🏆 Achievement unlocked: ${a.label}`));
+    } else {
+      showToast("Workout plan saved.");
+    }
     renderPlanner();
   }
 
@@ -344,6 +370,8 @@
   // WORKOUT MODE
   // ──────────────────────────────────────────────────────────────
 
+  const CARDIO_MIN_MS = 5 * 60 * 1000; // Phase 1: fixed 5-minute minimum
+
   let _wm = {
     exercises: [],
     currentIndex: 0,
@@ -352,48 +380,34 @@
     restTimer: null,
     restSeconds: 0,
     startTime: null,
-    isCardio: false,
-    cardioTimer: null,
-    cardioLaps: [],
-    cardioLastLap: 0,
+    cardio: null, // active cardio sub-session for the exercise currently in view
   };
+
+  function isCardioExercise(ex) {
+    return !!(ex && (ex.type === "cardio" || ex.isDefaultCardio));
+  }
 
   function startWorkout() {
     const plan = todayPlan();
-    const exercises = (plan.exercises || []);
-
-    // If only the default cardio warm-up is in the plan, go straight to cardio mode
-    const onlyDefaultCardio = exercises.length === 1 && exercises[0].isDefaultCardio;
-    const hasOnlyCardio = exercises.length > 0 && exercises.every(ex => ex.isDefaultCardio || ex.type === "cardio");
+    const exercises = (plan.exercises || []).map((ex) => ({ ...ex }));
+    if (!exercises.length) { showToast("Add an exercise to today's workout first."); return; }
 
     $("workoutMode").classList.remove("hidden");
     document.body.style.overflow = "hidden";
     $("wmProgressFill").style.width = "0%";
 
-    if (exercises.length > 0 && !onlyDefaultCardio) {
-      // Mixed workout: exercises + possibly cardio
-      _wm.isCardio = false;
-      _wm.exercises = exercises.map(ex => ({ ...ex }));
-      _wm.currentIndex = 0;
-      _wm.allResults = [];
-      _wm.startTime = Date.now();
-      $("wmExerciseCounter").textContent = `Exercise 1 of ${exercises.length}`;
-      showExerciseView(_wm.currentIndex);
-    } else {
-      // Pure cardio (default or user chose)
-      _wm.isCardio = true;
-      _wm.startTime = Date.now();
-      _wm.cardioLaps = [];
-      _wm.cardioLastLap = 0;
-      $("wmExerciseCounter").textContent = "CARDIO · 10 min";
-      $("wmProgressFill").style.width = "100%";
-      startCardioMode();
-    }
+    _wm.exercises = exercises;
+    _wm.currentIndex = 0;
+    _wm.allResults = [];
+    _wm.startTime = Date.now();
+    _wm.cardio = null;
+
+    showExerciseView(0);
   }
 
   function exitWorkout() {
     stopRestTimer();
-    stopCardioTimer();
+    stopActiveCardioTimers();
     $("workoutMode").classList.add("hidden");
     document.body.style.overflow = "";
     showOnlyView(null);
@@ -407,13 +421,18 @@
 
   function showExerciseView(index) {
     const ex = _wm.exercises[index];
-    showOnlyView("wmExerciseView");
-
-    // Update header
     const total = _wm.exercises.length;
-    $("wmExerciseCounter").textContent = `Exercise ${index + 1} of ${total}`;
     const pct = Math.round((index / total) * 100);
     $("wmProgressFill").style.width = pct + "%";
+
+    if (isCardioExercise(ex)) {
+      $("wmExerciseCounter").textContent = total > 1 ? `Exercise ${index + 1} of ${total} · Cardio` : "Cardio";
+      startCardioExercise(index);
+      return;
+    }
+
+    showOnlyView("wmExerciseView");
+    $("wmExerciseCounter").textContent = `Exercise ${index + 1} of ${total}`;
 
     // Exercise name + target
     $("wmExerciseName").textContent = ex.name || "Exercise";
@@ -427,10 +446,17 @@
 
     renderSetRows(ex);
 
-    // Update complete button label
+    // Update complete button label — disabled until every set is marked done
     const isLast = index === _wm.exercises.length - 1;
     $("wmCompleteExerciseBtn").textContent = isLast ? "Finish workout" : "Next exercise →";
     $("wmCompleteExerciseBtn").onclick = () => completeExercise();
+    updateCompleteButtonState();
+  }
+
+  function updateCompleteButtonState() {
+    const btn = $("wmCompleteExerciseBtn");
+    const allDone = _wm.setData.length > 0 && _wm.setData.every((s) => s.done);
+    btn.disabled = !allDone;
   }
 
   function renderSetRows(ex) {
@@ -477,6 +503,7 @@
           _wm.setData[i].done = false;
           renderSetRows(_wm.exercises[_wm.currentIndex]);
         }
+        updateCompleteButtonState();
       };
     });
   }
@@ -490,6 +517,10 @@
     });
 
     stopRestTimer();
+
+    const gained = GL.gamification.awardXP(key(), { exerciseId: ex.id });
+    if (gained) showToast(`+${gained} XP — ${ex.name || "Exercise"} complete`);
+    GL.gamification.checkAchievements().forEach(a => showToast(`🏆 Achievement unlocked: ${a.label}`));
 
     const isLast = _wm.currentIndex === _wm.exercises.length - 1;
     if (isLast) {
@@ -512,14 +543,14 @@
     showOnlyView("wmWorkoutDoneView");
     $("wmProgressFill").style.width = "100%";
 
+    const setResults = _wm.allResults.filter(r => r.sets);
+    const cardioResults = _wm.allResults.filter(r => r.type === "cardio");
+    const isPureCardio = setResults.length === 0 && cardioResults.length > 0;
+
     // Calculate summary
     const totalExercises = _wm.allResults.length;
-    let totalSets = 0;
-    let totalReps = 0;
-    let completedSets = 0;
-    let plannedSets = 0;
-
-    _wm.allResults.forEach(r => {
+    let totalSets = 0, totalReps = 0, completedSets = 0, plannedSets = 0;
+    setResults.forEach(r => {
       r.sets.forEach(s => {
         totalSets++;
         plannedSets++;
@@ -528,47 +559,77 @@
         else { totalReps += parseInt(s.target, 10) || 0; completedSets++; }
       });
     });
-
+    const cardioDurationMs = cardioResults.reduce((sum, r) => sum + (r.durationMs || 0), 0);
     const durationMs = Date.now() - _wm.startTime;
     const durationStr = fmtDuration(durationMs);
-
     const completionPct = plannedSets > 0 ? Math.round((completedSets / plannedSets) * 100) : 100;
 
-    $("wmSumExercises").textContent = totalExercises;
-    $("wmSumSets").textContent = totalSets;
-    $("wmSumReps").textContent = totalReps;
-    $("wmSumDuration").textContent = durationStr;
-    $("wmCompletionPct").textContent = completionPct + "%";
+    const doneIcon = $("wmWorkoutDoneView").querySelector(".wm-done-icon");
+    const doneTitle = $("wmWorkoutDoneView").querySelector(".wm-done-title");
 
-    // Animate the completion ring
-    const circumference = 213.6;
-    setTimeout(() => {
-      $("wmCompletionRing").style.strokeDashoffset = circumference - (circumference * completionPct / 100);
-    }, 100);
+    if (isPureCardio) {
+      doneIcon.textContent = "🏃";
+      doneTitle.textContent = "Cardio complete!";
+      $("wmSumExercises").textContent = fmtDuration(cardioDurationMs);
+      $("wmSumExercisesLabel").textContent = "Duration";
+      $("wmSumSets").textContent = cardioResults[0].laps?.length || "—";
+      $("wmSumSetsLabel").textContent = "Laps";
+      $("wmSumReps").textContent = "—";
+      $("wmSumRepsLabel").textContent = "—";
+      $("wmSumDuration").textContent = fmtDuration(cardioDurationMs);
+      $("wmCompletionPct").textContent = "💪";
+      setTimeout(() => { $("wmCompletionRing").style.strokeDashoffset = 0; }, 100);
+    } else {
+      doneIcon.textContent = "🎉";
+      doneTitle.textContent = "Workout complete!";
+      $("wmSumExercisesLabel").textContent = "Exercises";
+      $("wmSumSetsLabel").textContent = "Sets";
+      $("wmSumRepsLabel").textContent = "Total reps";
+      $("wmSumExercises").textContent = totalExercises;
+      $("wmSumSets").textContent = totalSets;
+      $("wmSumReps").textContent = totalReps;
+      $("wmSumDuration").textContent = durationStr;
+      $("wmCompletionPct").textContent = completionPct + "%";
+      const circumference = 213.6;
+      setTimeout(() => {
+        $("wmCompletionRing").style.strokeDashoffset = circumference - (circumference * completionPct / 100);
+      }, 100);
+    }
 
     // Save to Firebase
     saveWorkoutHistory(completionPct, totalSets, totalReps, durationMs);
 
-    $("wmFinishBtn").onclick = () => {
-      exitWorkout();
-      // Auto-log the day as "Went" if not already logged
-      const today = key();
-      if (!getLog(today)) {
-        const entry = {
-          date: today,
-          status: "Went",
-          workoutType: [],
-          reason: "",
-          updatedAt: Date.now(),
-          loggedAt: new Date().toISOString(),
-        };
-        state.logs = state.logs.filter(l => l.date !== today);
-        state.logs.push(entry);
-        state.logs.sort((a, b) => a.date.localeCompare(b.date));
-        if (!state.auth.isGuest) saveLog(entry);
-        render();
-      }
-    };
+    // All completion conditions (cardio minimum reached + every exercise +
+    // every set) are satisfied by the time we reach this screen, since each
+    // step above gated the next. Finalize attendance/XP/achievements now,
+    // exactly once — not deferred to the Finish button, and never from
+    // Preview Mode or from merely starting cardio or a workout.
+    finalizeWorkoutCompletion();
+
+    $("wmFinishBtn").onclick = () => { exitWorkout(); };
+  }
+
+  function finalizeWorkoutCompletion() {
+    const today = key();
+    if (!getLog(today)) {
+      const entry = {
+        date: today,
+        status: "Went",
+        workoutType: [],
+        reason: "",
+        updatedAt: Date.now(),
+        loggedAt: new Date().toISOString(),
+      };
+      state.logs = state.logs.filter(l => l.date !== today);
+      state.logs.push(entry);
+      state.logs.sort((a, b) => a.date.localeCompare(b.date));
+      if (!state.auth.isGuest) saveLog(entry);
+    }
+    const gained = GL.gamification.awardXP(today, { workout: true, attendance: true });
+    if (gained) showToast(`Workout complete! +${gained} XP`);
+    const newAch = GL.gamification.checkAchievements();
+    newAch.forEach(a => showToast(`🏆 Achievement unlocked: ${a.label}`));
+    render();
   }
 
   function saveWorkoutHistory(completionPct, totalSets, totalReps, durationMs) {
@@ -591,16 +652,77 @@
 
   // ──────────────────────────────────────────────────────────────
   // Cardio Mode
+  //
+  // Cardio is just the first exercise in the plan — not the workout, not
+  // attendance. It only becomes "done" once CARDIO_MIN_MS has elapsed.
+  // Elapsed time is persisted to localStorage on every tick (keyed by
+  // today's date) so pausing, exiting, or closing the app entirely never
+  // loses progress — reopening resumes exactly where it left off.
   // ──────────────────────────────────────────────────────────────
 
-  function startCardioMode() {
-    showOnlyView("wmCardioView");
-    $("cardioLaps").innerHTML = "";
-    updateCardioDisplay();
+  function cardioStorageKey(date) { return `gym-log-cardio-${date}`; }
 
-    _wm.cardioTimer = setInterval(() => {
+  function loadCardioSession(date) {
+    try {
+      const raw = localStorage.getItem(cardioStorageKey(date));
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }
+
+  function persistCardioSession(session) {
+    session.lastPersistedAt = Date.now();
+    try { localStorage.setItem(cardioStorageKey(session.date), JSON.stringify({
+      date: session.date, accumulatedMs: session.accumulatedMs, running: session.running,
+      lastResumeAt: session.lastResumeAt, lastPersistedAt: session.lastPersistedAt, laps: session.laps,
+    })); } catch {}
+  }
+
+  function clearCardioSession(date) {
+    try { localStorage.removeItem(cardioStorageKey(date)); } catch {}
+  }
+
+  function cardioElapsedMs(session) {
+    return session.accumulatedMs + (session.running ? Date.now() - session.lastResumeAt : 0);
+  }
+
+  function startCardioExercise(index) {
+    const today = key();
+    let session = loadCardioSession(today);
+    const now = Date.now();
+    if (!session) {
+      session = { date: today, accumulatedMs: 0, running: true, lastResumeAt: now, laps: [] };
+    } else if (session.running) {
+      // Resuming a session that was still marked "running" from a previous
+      // page load (e.g. the app was closed/crashed without a pause). Fold
+      // time only up to the last moment we KNOW the timer was actually
+      // ticking (lastPersistedAt) into the bank — never trust lastResumeAt
+      // across a gap, or however long the app was shut counts as elapsed.
+      const knownRunEnd = session.lastPersistedAt || session.lastResumeAt;
+      session.accumulatedMs += Math.max(0, knownRunEnd - session.lastResumeAt);
+      session.running = true;
+      session.lastResumeAt = now;
+    } else {
+      session.running = true;
+      session.lastResumeAt = now;
+    }
+    persistCardioSession(session);
+    _wm.cardio = session;
+
+    showOnlyView("wmCardioView");
+    renderCardioLaps();
+    updateCardioDisplay();
+    updateCardioStopButton();
+
+    _wm.cardio.tickTimer = setInterval(() => {
       updateCardioDisplay();
+      updateCardioStopButton();
+      persistCardioSession(_wm.cardio);
     }, 1000);
+
+    _wm.cardio.onHide = () => { if (_wm.cardio) persistCardioSession(_wm.cardio); };
+    document.addEventListener("visibilitychange", _wm.cardio.onHide);
+    window.addEventListener("pagehide", _wm.cardio.onHide);
 
     // Motivational status messages that rotate
     const motivations = [
@@ -609,20 +731,55 @@
     ];
     let mIdx = 0;
     const statusEl = $("cardioStatus");
-    _wm._cardioMotivTimer = setInterval(() => {
+    _wm.cardio.motivTimer = setInterval(() => {
       mIdx = (mIdx + 1) % motivations.length;
       if (statusEl) statusEl.textContent = motivations[mIdx];
     }, 15000);
   }
 
-  function stopCardioTimer() {
-    if (_wm.cardioTimer) { clearInterval(_wm.cardioTimer); _wm.cardioTimer = null; }
-    if (_wm._cardioMotivTimer) { clearInterval(_wm._cardioMotivTimer); _wm._cardioMotivTimer = null; }
+  function stopActiveCardioTimers() {
+    if (!_wm.cardio) return;
+    if (_wm.cardio.tickTimer) { clearInterval(_wm.cardio.tickTimer); _wm.cardio.tickTimer = null; }
+    if (_wm.cardio.motivTimer) { clearInterval(_wm.cardio.motivTimer); _wm.cardio.motivTimer = null; }
+    if (_wm.cardio.onHide) {
+      document.removeEventListener("visibilitychange", _wm.cardio.onHide);
+      window.removeEventListener("pagehide", _wm.cardio.onHide);
+      _wm.cardio.onHide = null;
+    }
+  }
+
+  // Pause the running cardio timer (banking elapsed time) without ending
+  // the exercise — used when the user exits the workout mid-cardio.
+  function pauseCardioSession() {
+    if (!_wm.cardio) return;
+    if (_wm.cardio.running) {
+      _wm.cardio.accumulatedMs += Date.now() - _wm.cardio.lastResumeAt;
+      _wm.cardio.running = false;
+    }
+    persistCardioSession(_wm.cardio);
+    stopActiveCardioTimers();
   }
 
   function updateCardioDisplay() {
-    const elapsed = Date.now() - _wm.startTime;
+    const elapsed = cardioElapsedMs(_wm.cardio);
     $("cardioElapsed").textContent = fmtDuration(elapsed);
+  }
+
+  function updateCardioStopButton() {
+    const elapsed = cardioElapsedMs(_wm.cardio);
+    const btn = $("cardioStopBtn");
+    const label = $("cardioStopLabel");
+    const note = $("cardioMinNote");
+    if (elapsed >= CARDIO_MIN_MS) {
+      btn.disabled = false;
+      if (label) label.textContent = "Stop & Save";
+      if (note) note.textContent = "Minimum reached — you can finish anytime";
+    } else {
+      btn.disabled = true;
+      const remain = CARDIO_MIN_MS - elapsed;
+      if (label) label.textContent = "Keep going…";
+      if (note) note.textContent = `${fmtDuration(remain)} left to reach the 5:00 minimum`;
+    }
   }
 
   function fmtDuration(ms) {
@@ -635,18 +792,19 @@
   }
 
   function recordCardioLap() {
-    const now = Date.now();
-    const totalElapsed = now - _wm.startTime;
-    const lapElapsed = totalElapsed - _wm.cardioLastLap;
-    _wm.cardioLastLap = totalElapsed;
-    _wm.cardioLaps.push({ lapNum: _wm.cardioLaps.length + 1, total: totalElapsed, split: lapElapsed });
+    if (!_wm.cardio) return;
+    const totalElapsed = cardioElapsedMs(_wm.cardio);
+    const lastLap = _wm.cardio.laps.length ? _wm.cardio.laps[_wm.cardio.laps.length - 1].total : 0;
+    _wm.cardio.laps.push({ lapNum: _wm.cardio.laps.length + 1, total: totalElapsed, split: totalElapsed - lastLap });
+    persistCardioSession(_wm.cardio);
     renderCardioLaps();
   }
 
   function renderCardioLaps() {
     const container = $("cardioLaps");
+    const laps = (_wm.cardio && _wm.cardio.laps) || [];
     // Most recent lap on top
-    const reversed = [..._wm.cardioLaps].reverse();
+    const reversed = [...laps].reverse();
     container.innerHTML = reversed.map(l =>
       `<div class="cardio-lap-item">
         <span>Lap ${l.lapNum}</span>
@@ -655,71 +813,27 @@
     ).join("");
   }
 
-  function finishCardio() {
-    stopCardioTimer();
-    const durationMs = Date.now() - _wm.startTime;
+  // Called only once CARDIO_MIN_MS has been reached (button is disabled
+  // otherwise, and this re-checks defensively).
+  function finishCardioExercise() {
+    if (!_wm.cardio || cardioElapsedMs(_wm.cardio) < CARDIO_MIN_MS) return;
 
-    // Show workout complete screen adapted for cardio
-    showOnlyView("wmWorkoutDoneView");
-    $("wmProgressFill").style.width = "100%";
-    $("wmWorkoutDoneView").querySelector(".wm-done-icon").textContent = "🏃";
-    $("wmWorkoutDoneView").querySelector(".wm-done-title").textContent = "Cardio complete!";
+    const durationMs = cardioElapsedMs(_wm.cardio);
+    const laps = _wm.cardio.laps;
+    stopActiveCardioTimers();
+    clearCardioSession(key());
 
-    // Adapt summary grid for cardio
-    $("wmSumExercises").textContent = fmtDuration(durationMs);
-    $("wmSumExercisesLabel").textContent = "Duration";
-    $("wmSumSets").textContent = _wm.cardioLaps.length || "—";
-    $("wmSumSetsLabel").textContent = "Laps";
-    $("wmSumReps").textContent = "—";
-    $("wmSumRepsLabel").textContent = "—";
-    $("wmSumDuration").textContent = fmtDuration(durationMs);
+    const ex = _wm.exercises[_wm.currentIndex];
+    _wm.allResults.push({ name: ex.name || "Cardio", type: "cardio", durationMs, laps });
+    _wm.cardio = null;
 
-    // Hide the completion ring for cardio — replace with clean duration
-    $("wmCompletionPct").textContent = "💪";
-    const circumference = 213.6;
-    setTimeout(() => {
-      $("wmCompletionRing").style.strokeDashoffset = 0; // full ring
-    }, 100);
+    const gained = GL.gamification.awardXP(key(), { cardio: true });
+    if (gained) showToast(`+${gained} XP — Cardio complete!`);
+    GL.gamification.checkAchievements().forEach(a => showToast(`🏆 Achievement unlocked: ${a.label}`));
 
-    // Save to Firebase
-    saveCardioHistory(durationMs);
-
-    $("wmFinishBtn").onclick = () => {
-      exitWorkout();
-      // Reset summary labels back for next time
-      $("wmSumExercisesLabel").textContent = "Exercises";
-      $("wmSumSetsLabel").textContent = "Sets";
-      $("wmSumRepsLabel").textContent = "Total reps";
-      $("wmWorkoutDoneView").querySelector(".wm-done-icon").textContent = "🎉";
-      $("wmWorkoutDoneView").querySelector(".wm-done-title").textContent = "Workout complete!";
-      // Auto-log as Went
-      const today = key();
-      if (!getLog(today)) {
-        const entry = {
-          date: today, status: "Went", workoutType: ["Cardio"],
-          reason: "", updatedAt: Date.now(), loggedAt: new Date().toISOString(),
-        };
-        state.logs = state.logs.filter(l => l.date !== today);
-        state.logs.push(entry);
-        state.logs.sort((a, b) => a.date.localeCompare(b.date));
-        if (!state.auth.isGuest) saveLog(entry);
-        render();
-      }
-    };
-  }
-
-  function saveCardioHistory(durationMs) {
-    if (state.auth.isGuest || !state.cloud.plansRef) return;
-    const today = key();
-    const record = {
-      date: today,
-      type: "cardio",
-      completedAt: new Date().toISOString(),
-      durationMs,
-      laps: _wm.cardioLaps,
-      updatedAt: Date.now(),
-    };
-    state.cloud.plansRef.doc(today).set({ cardioHistory: record }, { merge: true }).catch(console.error);
+    const isLast = _wm.currentIndex === _wm.exercises.length - 1;
+    if (isLast) showWorkoutComplete();
+    else showExerciseDone(ex.name || "Cardio");
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -768,6 +882,12 @@
 
     // Workout mode buttons
     $("wmExitBtn").onclick = () => {
+      if (_wm.cardio) {
+        // Cardio in progress — pause and preserve elapsed time, don't discard it
+        pauseCardioSession();
+        exitWorkout();
+        return;
+      }
       if (confirm("Exit workout? Progress will be lost.")) exitWorkout();
     };
     $("wmSkipRestBtn").onclick = () => { stopRestTimer(); showExerciseView(_wm.currentIndex); };
@@ -775,7 +895,7 @@
 
     // Cardio mode buttons
     $("cardioLapBtn").onclick = () => recordCardioLap();
-    $("cardioStopBtn").onclick = () => finishCardio();
+    $("cardioStopBtn").onclick = () => finishCardioExercise();
 
     [$("themeSystemBtn"), $("themeLightBtn"), $("themeDarkBtn")].forEach((btn) => btn.onclick = () => setTheme(btn.dataset.theme));
     $("prevMonthBtn").onclick = () => changeHistoryMonth(-1, () => renderProgress({ onOpenDetail: openDetailSheet }));
@@ -800,6 +920,7 @@
         state.cloud = { ready: false, unsubs: [], profileRef: null, logsRef: null, notesRef: null, plansRef: null };
         // 3. Wipe user-specific localStorage keys
         clearLocalUserData();
+        GL.gamification.reset();
         // 4. Firebase sign-out — triggers onAuthStateChanged → showGate
         await signOutUser();
       } catch {
@@ -849,6 +970,7 @@
   function enterGuest() {
     state.auth = { ...state.auth, user: null, isGuest: true };
     state.logs = []; state.journal = []; state.plans = {}; state.goalTarget = 12;
+    GL.gamification.reset();
     hideSplash();
     showApp();
     render();
@@ -857,6 +979,7 @@
   function enterApp(user) {
     state.auth = { ...state.auth, user, isGuest: false };
     state.logs = []; state.journal = []; state.plans = {}; state.cloud.ready = false;
+    GL.gamification.reset();
     hideSplash();
     showApp();
     initSync(user);

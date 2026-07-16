@@ -87,6 +87,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .topbar .brand span{font-family:var(--font-display);font-weight:800;font-size:1.02rem;letter-spacing:-.02em}
 .icon-btn{width:40px;height:40px;border-radius:var(--radius-pill);background:var(--surface);box-shadow:var(--shadow-1);display:grid;place-items:center;font-size:1.05rem;color:var(--text);transition:transform var(--dur-1) var(--ease-spring)}
 .icon-btn:active{transform:scale(.9)}
+.xp-badge{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:var(--radius-pill);background:var(--ember-soft);color:var(--ember);font-size:.76rem;font-weight:800;letter-spacing:.01em;box-shadow:var(--shadow-1)}
 
 .screen{animation:screen-in var(--dur-2) var(--ease-out)}
 @keyframes screen-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

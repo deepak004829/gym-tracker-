@@ -31,15 +31,20 @@ GL.gamification = (function () {
   function loadData() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return normalizeData(JSON.parse(raw));
     } catch {}
+    return normalizeData({});
+  }
+
+  function normalizeData(data) {
     return {
-      totalXP: 0,
-      earnedXP: {},          // { "2024-07-15": {gym:true,note:true,plan:true} }
-      earnedAchievements: [], // array of achievement ids
-      missions: null,         // {date, logged, noted, planned}
-      notificationTime: null, // "HH:MM"
-      notifEnabled: false,
+      totalXP: Number(data.totalXP) || 0,
+      earnedXP: data.earnedXP && typeof data.earnedXP === "object" ? data.earnedXP : {}, // { "2024-07-15": {cardio,workout,attendance,note,plan,exercises:{id:true}} }
+      earnedAchievements: Array.isArray(data.earnedAchievements) ? data.earnedAchievements : [],
+      missions: data.missions || null,
+      notificationTime: data.notificationTime || null,
+      notifEnabled: !!data.notifEnabled,
+      updatedAt: Number(data.updatedAt) || 0,
     };
   }
 
@@ -49,6 +54,48 @@ GL.gamification = (function () {
 
   let _data = loadData();
   function getData() { return _data; }
+
+  // Reset in-memory + local gamification state (called on sign-out / guest
+  // entry so one account's XP never leaks onto another account on a shared
+  // device — the caller is responsible for also clearing localStorage).
+  function reset() {
+    _data = normalizeData({});
+    saveData(_data);
+  }
+
+  // Debounced push of the current gamification data to the signed-in user's
+  // Firestore profile doc. No-ops for guests or before Firestore is ready.
+  let _remoteTimer = null;
+  function persistRemote() {
+    clearTimeout(_remoteTimer);
+    _remoteTimer = setTimeout(() => {
+      try {
+        const state = GL.store && GL.store.getState();
+        if (!state || state.auth.isGuest || !state.cloud.profileRef) return;
+        state.cloud.profileRef.set({
+          gamification: {
+            totalXP: _data.totalXP,
+            earnedXP: _data.earnedXP,
+            earnedAchievements: _data.earnedAchievements,
+            updatedAt: _data.updatedAt,
+          },
+        }, { merge: true }).catch(() => {});
+      } catch {}
+    }, 500);
+  }
+
+  // Merge gamification data that came down from Firestore (e.g. on sign-in,
+  // or from another device). Last-write-wins by updatedAt so we never lose
+  // the more recent side, and never regress a signed-in user's totals back
+  // to zero just because the local cache was empty.
+  function mergeRemote(remote) {
+    if (!remote) return;
+    const remoteUpdated = Number(remote.updatedAt) || 0;
+    if (remoteUpdated > (_data.updatedAt || 0)) {
+      _data = normalizeData({ ..._data, ...remote, updatedAt: remoteUpdated });
+      saveData(_data);
+    }
+  }
 
   // Compute stats from the main GL store
   function computeStats() {
@@ -64,31 +111,65 @@ GL.gamification = (function () {
     return { totalWent, currentStreak, legDays, noteCount, planCount, totalXP: _data.totalXP };
   }
 
-  // Award XP for a day's activities
-  function awardXP(date, { gym = false, note = false, plan = false } = {}) {
+  // Award XP for a day's completed work. Every category is deduplicated per
+  // calendar date (and, for individual exercises, per exercise id) so the
+  // same action can never pay out twice — resuming a workout, refreshing
+  // the page, or re-opening the app after a crash never re-awards XP.
+  //
+  // Reward table:
+  //   cardio completed        -> +20  (once per day)
+  //   exercise completed      -> +10  (once per exercise per day)
+  //   workout completed       -> +50  (once per day)
+  //   daily attendance (Went) -> +25  (once per day)
+  //   note added              -> +10  (once per day)
+  //   plan created            -> +20  (once per day)
+  //   achievement unlock      -> +25  (handled in checkAchievements, once per achievement ever)
+  //
+  // Nothing is awarded for opening the app, entering Preview Mode, or simply
+  // pressing Play / starting cardio — only for work that actually finished.
+  function awardXP(date, { note = false, plan = false, cardio = false, workout = false, attendance = false, exerciseId = null } = {}) {
     const earned = _data.earnedXP[date] || {};
     let gain = 0;
-    if (gym && !earned.gym) { gain += 50; earned.gym = true; }
     if (note && !earned.note) { gain += 10; earned.note = true; }
     if (plan && !earned.plan) { gain += 20; earned.plan = true; }
+    if (cardio && !earned.cardio) { gain += 20; earned.cardio = true; }
+    if (workout && !earned.workout) { gain += 50; earned.workout = true; }
+    if (attendance && !earned.attendance) { gain += 25; earned.attendance = true; }
+    if (exerciseId) {
+      earned.exercises = earned.exercises || {};
+      if (!earned.exercises[exerciseId]) { gain += 10; earned.exercises[exerciseId] = true; }
+    }
     if (gain > 0) {
       _data.totalXP += gain;
       _data.earnedXP[date] = earned;
-      checkAchievements();
+      _data.updatedAt = Date.now();
       saveData(_data);
+      persistRemote();
     }
     return gain;
   }
 
+  // Checks all achievements against current stats and unlocks any that have
+  // newly qualified (each achievement can only ever unlock once — dedup is
+  // by id, not by date). Returns the list of achievements that were newly
+  // unlocked by *this* call, so a caller can show "Achievement unlocked!"
+  // exactly once. Intentionally NOT called from inside awardXP, so callers
+  // control when they want to know about (and toast) fresh unlocks.
   function checkAchievements() {
     const stats = computeStats();
     const newlyEarned = [];
     ACHIEVEMENTS.forEach(a => {
       if (!_data.earnedAchievements.includes(a.id) && a.check(stats)) {
         _data.earnedAchievements.push(a.id);
+        _data.totalXP += 25; // achievement unlock bonus
         newlyEarned.push(a);
       }
     });
+    if (newlyEarned.length) {
+      _data.updatedAt = Date.now();
+      saveData(_data);
+      persistRemote();
+    }
     return newlyEarned;
   }
 
@@ -158,7 +239,7 @@ GL.gamification = (function () {
   }
 
   return {
-    getData, saveData, loadData,
+    getData, saveData, loadData, reset, mergeRemote,
     awardXP, checkAchievements, computeStats,
     getCurrentRank, getNextRank, getLevelInfo,
     getTodayMissions, updateMission,

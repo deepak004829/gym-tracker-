@@ -153,9 +153,9 @@ GL.pageHome = (function () {
           </div>
           <div class="xp-track"><div class="xp-fill" style="width:${xpPct}%"></div></div>
           <div class="xp-rewards">
-            <span>🏋️ Gym day = +50 XP</span>
-            <span>📝 Notes = +10 XP</span>
-            <span>📋 Plan = +20 XP</span>
+            <span>🏃 Cardio done = +20 XP</span>
+            <span>🏋️ Workout done = +50 XP</span>
+            <span>📅 Attendance = +25 XP</span>
           </div>
         </div>
       </div>
@@ -219,12 +219,12 @@ GL.pageHome = (function () {
     const planned = hasPlan;
 
     container.innerHTML = `
-      <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">DAILY GRIND</p><h2>Today's Missions</h2></div><span class="mission-reward">+50 XP</span></div>
+      <div class="section-head" style="margin-top:20px"><div><p class="eyebrow">DAILY GRIND</p><h2>Today's Missions</h2></div><span class="mission-reward">+55 XP</span></div>
       <div class="mission-card">
         <div class="mission-item ${logged ? "done" : ""}">
           <span class="mission-check">${logged ? "☑" : "☐"}</span>
           <div class="mission-text"><strong>Log workout</strong><p>Mark today as Went</p></div>
-          <span class="mission-xp">+50 XP</span>
+          <span class="mission-xp">+25 XP</span>
         </div>
         <div class="mission-item ${noted ? "done" : ""}">
           <span class="mission-check">${noted ? "☑" : "☐"}</span>

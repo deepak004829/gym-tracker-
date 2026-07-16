@@ -201,6 +201,7 @@
   <header class="topbar">
     <div class="brand home-brand-only"><img src="icon-192.png" alt=""><span>Gym Log</span></div>
     <div class="topbar-actions">
+      <span id="topbarXpBadge" class="xp-badge hidden" aria-label="Total XP">0 XP</span>
       <button id="settingsBtn" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" style="stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2.1 2.1 0 1 1-2.97 2.97l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V20a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2.1 2.1 0 1 1-2.97-2.97l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.1 2.1 0 1 1 2.97-2.97l.06.06a1.7 1.7 0 0 0 1.87.34H10.3a1.7 1.7 0 0 0 1-1.55V4a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.1 2.1 0 1 1 2.97 2.97l-.06.06a1.7 1.7 0 0 0-.34 1.87V10.3a1.7 1.7 0 0 0 1.55 1H20a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg></button>
     </div>
   </header>
@@ -482,6 +483,7 @@
         <p class="eyebrow" style="margin:0 0 4px;text-align:center;letter-spacing:.14em">CARDIO</p>
         <div id="cardioElapsed" class="cardio-elapsed">0:00</div>
         <p id="cardioStatus" class="cardio-status-label">Keep going 💪</p>
+        <p id="cardioMinNote" class="cardio-status-label" style="opacity:.6;font-size:.7rem;margin-top:2px">Minimum 5:00 to complete</p>
       </div>
     </div>
 
@@ -492,9 +494,9 @@
         <svg viewBox="0 0 24 24" width="18" height="18" style="stroke:currentColor;fill:none;stroke-width:2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
         Lap
       </button>
-      <button id="cardioStopBtn" class="cardio-stop-btn" type="button">
+      <button id="cardioStopBtn" class="cardio-stop-btn" type="button" disabled>
         <svg viewBox="0 0 24 24" width="22" height="22" style="stroke:#fff;fill:#fff;stroke-width:0"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
-        Stop & Save
+        <span id="cardioStopLabel">Stop &amp; Save</span>
       </button>
     </div>
   </div>
@@ -621,7 +623,6 @@
 <script src="auth-gate.js" defer></script>
 <script src="log-sheet.js" defer></script>
 <script src="detail-sheet.js" defer></script>
-<script src="plan-sheet.js" defer></script>
 <script src="gamification.js" defer></script>
 <script src="settings-sheet.js" defer></script>
 <script src="home.js" defer></script>

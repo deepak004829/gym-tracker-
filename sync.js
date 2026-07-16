@@ -83,6 +83,7 @@ GL.sync = (function () {
       state.journal = Array.isArray(data.journal) ? data.journal : state.journal;
       state.plans = data.plans && typeof data.plans === "object" ? data.plans : state.plans;
     }
+    if (data.gamification && GL.gamification) GL.gamification.mergeRemote(data.gamification);
     onData();
   }
 
