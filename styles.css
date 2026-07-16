@@ -1149,3 +1149,45 @@ body.dark .guest-banner{color:#fff}
   background: var(--ember);
   color: #fff;
 }
+
+/* ============================== SPLASH SCREEN ============================== */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink-950, #0b0d0f);
+  transition: opacity 0.4s ease;
+}
+.splash-screen.splash-fade {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-screen.splash-gone {
+  display: none;
+}
+.splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: splashPop 0.45s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes splashPop {
+  from { transform: scale(.88); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.splash-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+}
+.splash-wordmark {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--ink-50, #f8f8f8);
+  margin: 0;
+}

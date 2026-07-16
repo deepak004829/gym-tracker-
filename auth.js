@@ -84,9 +84,23 @@ GL.authApi = (function () {
     }
   }
 
+  // Wipe all user-specific data from localStorage so the next person who
+  // opens the app (or the same user on a shared device) starts clean.
+  function clearLocalUserData() {
+    const keysToRemove = [
+      "gym-log-profile",
+      "gym-log-logs",
+      "gym-log-journal",
+      "gym-log-plans",
+      "gym-log-gamification",
+    ];
+    keysToRemove.forEach((k) => { try { localStorage.removeItem(k); } catch {} });
+  }
+
   return {
     firebaseReady, readAuthError, initAuth,
-    signInWithPassword, signUpWithPassword, sendPasswordReset, signOutUser,
+    signInWithPassword, signUpWithPassword, sendPasswordReset,
+    signOutUser, clearLocalUserData,
     signInWithGoogle, getGoogleRedirectResult,
   };
 })();

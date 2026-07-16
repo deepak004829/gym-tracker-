@@ -46,6 +46,7 @@ GL.settingsSheet = (function () {
 
     // Install button visibility
     renderInstallButton();
+    wireUpdateRow();
 
     const now = new Date();
     const completed = state.logs.filter((item) => {
@@ -228,7 +229,7 @@ GL.settingsSheet = (function () {
 
   function renderInstallButton() {
     const section = document.getElementById("settingsInstallSection");
-    const btn = document.getElementById("settingsInstallBtn");
+    const btn     = document.getElementById("settingsInstallBtn");
     const iosHint = document.getElementById("settingsInstallIosHint");
     if (!section || !btn) return;
 
@@ -236,35 +237,86 @@ GL.settingsSheet = (function () {
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true;
 
-    if (isStandalone) { section.classList.add("hidden"); return; }
+    // Hide the whole section when already installed as PWA
+    if (isStandalone) {
+      section.classList.add("hidden");
+      return;
+    }
 
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isIos    = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|opios|chrome/i.test(navigator.userAgent);
 
     section.classList.remove("hidden");
 
     if (isIos && isSafari) {
-      // iOS: show the hint, hide the button
+      // iOS Safari: can't trigger native prompt, show manual share instructions
       btn.classList.add("hidden");
       if (iosHint) iosHint.classList.remove("hidden");
-    } else if (window._pwaInstallPrompt) {
-      // Android/Chrome: show install button
-      btn.classList.remove("hidden");
-      if (iosHint) iosHint.classList.add("hidden");
-      btn.onclick = async () => {
-        const prompt = window._pwaInstallPrompt;
-        if (!prompt) return;
-        prompt.prompt();
-        const { outcome } = await prompt.userChoice;
-        window._pwaInstallPrompt = null;
-        if (outcome === "accepted") {
-          section.classList.add("hidden");
-          GL.toast?.showToast("✅ App installed!");
-        }
-      };
-    } else {
-      section.classList.add("hidden");
+      return;
     }
+
+    // Android/Chrome path — show the install button whether or not the
+    // beforeinstallprompt event has already fired. If it hasn't fired yet
+    // we show a "waiting" state and update as soon as it does.
+    if (iosHint) iosHint.classList.add("hidden");
+
+    function applyInstallPrompt() {
+      if (window._pwaInstallPrompt) {
+        btn.classList.remove("hidden");
+        btn.disabled = false;
+        btn.title = "";
+      } else {
+        // Prompt not available yet (page just loaded, or already installed
+        // via another path). Show the button greyed out; it will become
+        // active once the event fires.
+        btn.classList.remove("hidden");
+        btn.disabled = true;
+        btn.title = "Install option not available in this browser right now";
+      }
+    }
+
+    applyInstallPrompt();
+
+    // Re-enable the moment the OS fires the event (can happen after render)
+    window.addEventListener("beforeinstallprompt", () => {
+      applyInstallPrompt();
+      // Also re-enable the floating banner if it was dismissed earlier
+    }, { once: true });
+
+    btn.onclick = async () => {
+      const prompt = window._pwaInstallPrompt;
+      if (!prompt) return;
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      window._pwaInstallPrompt = null;
+      if (outcome === "accepted") {
+        section.classList.add("hidden");
+        GL.toast?.showToast("✅ App installed!");
+      }
+    };
+
+    // If already installed (appinstalled event fires), hide the section
+    window.addEventListener("appinstalled", () => {
+      section.classList.add("hidden");
+    }, { once: true });
+  }
+
+  function wireUpdateRow() {
+    const row = document.getElementById("settingsUpdateBtn");
+    if (!row) return;
+
+    // Show the row immediately if an update was already detected
+    if (window._pwaUpdateReady) {
+      row.classList.remove("hidden");
+    }
+
+    row.onclick = () => {
+      if (typeof GL !== "undefined" && GL._applyUpdate) {
+        GL._applyUpdate();
+      } else {
+        window.location.reload();
+      }
+    };
   }
 
   return { initSettingsSheet, openSettingsSheet, renderSettings, applyTheme, tryAutoSchedule };

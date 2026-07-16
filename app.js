@@ -11,7 +11,7 @@
   const { renderHome } = GL.pageHome;
   const { renderProgress, changeHistoryMonth, weekdayLabelsHTML } = GL.pageProgress;
   const { initSettingsSheet, renderSettings, applyTheme, tryAutoSchedule } = GL.settingsSheet;
-  const { firebaseReady, initAuth, signOutUser } = GL.authApi;
+  const { firebaseReady, initAuth, signOutUser, clearLocalUserData } = GL.authApi;
   const { configureSync, initSync, queueProfileSync, saveLog, savePlanRecord } = GL.sync;
 
   const state = getState();
@@ -781,8 +781,30 @@
     $("prevMonthBtn").onclick = () => changeHistoryMonth(-1, () => renderProgress({ onOpenDetail: openDetailSheet }));
     $("nextMonthBtn").onclick = () => changeHistoryMonth(1, () => renderProgress({ onOpenDetail: openDetailSheet }));
     $("signOutBtn").onclick = async () => {
-      if (state.auth.isGuest) { state.auth.isGuest = false; setAuthMode("signin"); showGate(); return; }
-      try { await signOutUser(); } catch { showToast("Couldn't sign out. Try again."); }
+      if (state.auth.isGuest) {
+        state.auth.isGuest = false;
+        state.logs = []; state.journal = []; state.plans = {};
+        setAuthMode("signin");
+        showGate();
+        return;
+      }
+      try {
+        // 1. Unsubscribe Firestore listeners before wiping state
+        if (state.cloud && state.cloud.unsubs) {
+          state.cloud.unsubs.forEach((fn) => { try { fn(); } catch {} });
+          state.cloud.unsubs = [];
+        }
+        // 2. Clear sensitive in-memory state
+        state.auth = { user: null, isGuest: false };
+        state.logs = []; state.journal = []; state.plans = {};
+        state.cloud = { ready: false, unsubs: [], profileRef: null, logsRef: null, notesRef: null, plansRef: null };
+        // 3. Wipe user-specific localStorage keys
+        clearLocalUserData();
+        // 4. Firebase sign-out — triggers onAuthStateChanged → showGate
+        await signOutUser();
+      } catch {
+        showToast("Couldn't sign out. Try again.");
+      }
     };
     $("goalMinus").onclick = () => saveGoal(state.goalTarget - 1);
     $("goalPlus").onclick = () => saveGoal(state.goalTarget + 1);
@@ -807,12 +829,27 @@
   }
 
   // ──────────────────────────────────────────────────────────────
+  // Splash Screen
+  // ──────────────────────────────────────────────────────────────
+
+  function hideSplash() {
+    const splash = $("splashScreen");
+    if (!splash || splash.classList.contains("splash-gone")) return;
+    splash.classList.add("splash-fade");
+    setTimeout(() => {
+      splash.classList.add("splash-gone");
+      splash.style.display = "none";
+    }, 420);
+  }
+
+  // ──────────────────────────────────────────────────────────────
   // Auth / App lifecycle
   // ──────────────────────────────────────────────────────────────
 
   function enterGuest() {
     state.auth = { ...state.auth, user: null, isGuest: true };
     state.logs = []; state.journal = []; state.plans = {}; state.goalTarget = 12;
+    hideSplash();
     showApp();
     render();
   }
@@ -820,6 +857,7 @@
   function enterApp(user) {
     state.auth = { ...state.auth, user, isGuest: false };
     state.logs = []; state.journal = []; state.plans = {}; state.cloud.ready = false;
+    hideSplash();
     showApp();
     initSync(user);
     render();
@@ -831,13 +869,81 @@
       onError: () => showToast("We couldn't sync your latest changes."),
       onDataChange: render,
     });
-    initAuth(enterApp, showGate, (message) => { showGate(); $("authError").textContent = message; $("authError").classList.remove("hidden"); });
+    initAuth(
+      enterApp,
+      () => { hideSplash(); showGate(); },
+      (message) => { hideSplash(); showGate(); $("authError").textContent = message; $("authError").classList.remove("hidden"); }
+    );
   }
 
-  function registerServiceWorker() {
-    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-      navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  // ──────────────────────────────────────────────────────────────
+  // Update notification — fired when a new SW is waiting
+  // ──────────────────────────────────────────────────────────────
+
+  let _waitingSW = null; // holds the waiting SW registration so we can skip-wait
+
+  function showUpdateUI() {
+    // Banner at the bottom of the screen
+    const banner = $("updateBanner");
+    if (banner) banner.classList.remove("hidden");
+
+    // Row inside Settings (visible whenever settings sheet is rendered)
+    // We store a flag so renderSettings can pick it up even if called later
+    window._pwaUpdateReady = true;
+    const row = document.getElementById("settingsUpdateBtn");
+    if (row) row.classList.remove("hidden");
+  }
+
+  function applyUpdate() {
+    if (_waitingSW) {
+      // Tell the waiting SW to take over immediately
+      _waitingSW.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      // Fallback: just hard-reload; the browser will grab the new cached version
+      window.location.reload();
     }
+  }
+
+  // Expose so settings-sheet.js can call it from the in-settings update row
+  GL._applyUpdate = applyUpdate;
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || !location.protocol.startsWith("http")) return;
+
+    navigator.serviceWorker.register("./service-worker.js").then((reg) => {
+      // A new SW just installed and is waiting (page was already open)
+      if (reg.waiting) {
+        _waitingSW = reg.waiting;
+        showUpdateUI();
+      }
+
+      // A new SW starts installing while the page is open
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            // New version cached and ready, old version still running
+            _waitingSW = newWorker;
+            showUpdateUI();
+          }
+        });
+      });
+    }).catch(() => {});
+
+    // When the SW controller changes (after skip-wait), reload to get fresh files
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+
+    // Wire up the update banner buttons
+    const updateBtn     = $("updateBtn");
+    const updateDismiss = $("updateDismissBtn");
+    if (updateBtn)     updateBtn.onclick     = applyUpdate;
+    if (updateDismiss) updateDismiss.onclick = () => {
+      const banner = $("updateBanner");
+      if (banner) banner.classList.add("hidden");
+    };
   }
 
   // ──────────────────────────────────────────────────────────────

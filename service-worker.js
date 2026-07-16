@@ -1,4 +1,4 @@
-const CACHE_NAME = "gym-log-v14";
+const CACHE_NAME = "gym-log-v16";
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,6 +23,7 @@ const ASSETS = [
   "./auth-gate.js",
   "./home.js",
   "./progress.js",
+  "./gamification.js",
   "./icon-180.png",
   "./icon-192.png",
   "./icon-512.png",
@@ -42,7 +43,16 @@ self.addEventListener("install", (event) => {
         console.warn("Service worker precache had an issue:", error);
       })
   );
-  self.skipWaiting();
+  // Do NOT call self.skipWaiting() here — we want the waiting SW to stay
+  // waiting until the user explicitly taps "Update". The app posts a
+  // SKIP_WAITING message (via registerServiceWorker) when they do.
+});
+
+// The app sends this message when the user taps the update button.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
