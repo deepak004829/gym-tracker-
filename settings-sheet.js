@@ -21,9 +21,31 @@ GL.settingsSheet = (function () {
   function renderSettings() {
     const state = getState();
     const isGuest = state.auth.isGuest;
-    $("profileAvatar").textContent = isGuest ? "G" : (state.auth.user?.email || "G")[0].toUpperCase();
-    $("profileName").textContent = isGuest ? "Guest" : (state.auth.user?.email || "Gym Log member");
-    $("profileSub").textContent = isGuest ? "Preview mode — create an account to save" : "Firebase account";
+
+    // Load saved profile
+    let profile = null;
+    try { profile = JSON.parse(localStorage.getItem("gym-log-profile") || "null"); } catch {}
+    const displayName = profile?.name || (isGuest ? "Guest" : (state.auth.user?.email || "Gym Log member"));
+    const avatarChar = displayName[0].toUpperCase();
+
+    $("profileAvatar").textContent = avatarChar;
+    $("profileName").textContent = displayName;
+
+    // Build sub info
+    let subParts = [];
+    if (profile?.age) subParts.push(`Age ${profile.age}`);
+    if (profile?.weight) subParts.push(`${profile.weight} kg`);
+    if (profile?.goalKg) subParts.push(`Goal: −${profile.goalKg} kg`);
+    if (subParts.length) {
+      $("profileSub").textContent = subParts.join(" · ");
+    } else if (isGuest) {
+      $("profileSub").textContent = "Preview mode — create an account to save";
+    } else {
+      $("profileSub").textContent = state.auth.user?.email || "Firebase account";
+    }
+
+    // Install button visibility
+    renderInstallButton();
 
     const now = new Date();
     const completed = state.logs.filter((item) => {
@@ -202,6 +224,47 @@ GL.settingsSheet = (function () {
     const state = getState();
     const dark = state.theme === "dark" || (state.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.body.classList.toggle("dark", dark);
+  }
+
+  function renderInstallButton() {
+    const section = document.getElementById("settingsInstallSection");
+    const btn = document.getElementById("settingsInstallBtn");
+    const iosHint = document.getElementById("settingsInstallIosHint");
+    if (!section || !btn) return;
+
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    if (isStandalone) { section.classList.add("hidden"); return; }
+
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|opios|chrome/i.test(navigator.userAgent);
+
+    section.classList.remove("hidden");
+
+    if (isIos && isSafari) {
+      // iOS: show the hint, hide the button
+      btn.classList.add("hidden");
+      if (iosHint) iosHint.classList.remove("hidden");
+    } else if (window._pwaInstallPrompt) {
+      // Android/Chrome: show install button
+      btn.classList.remove("hidden");
+      if (iosHint) iosHint.classList.add("hidden");
+      btn.onclick = async () => {
+        const prompt = window._pwaInstallPrompt;
+        if (!prompt) return;
+        prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        window._pwaInstallPrompt = null;
+        if (outcome === "accepted") {
+          section.classList.add("hidden");
+          GL.toast?.showToast("✅ App installed!");
+        }
+      };
+    } else {
+      section.classList.add("hidden");
+    }
   }
 
   return { initSettingsSheet, openSettingsSheet, renderSettings, applyTheme, tryAutoSchedule };

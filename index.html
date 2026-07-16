@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d0f">
 <meta name="description" content="A private, focused gym tracker.">
 <title>Gym Log</title>
@@ -20,28 +20,171 @@
 </head>
 <body>
 
+<!-- ===== ZOOM LOCK — block all pinch/double-tap/keyboard zoom ===== -->
+<script>
+(function(){
+  // Block pinch-to-zoom via touch events
+  document.addEventListener('touchstart', function(e){
+    if(e.touches.length > 1){ e.preventDefault(); }
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e){
+    if(e.touches.length > 1){ e.preventDefault(); }
+  }, { passive: false });
+
+  // Block double-tap zoom on iOS
+  var lastTap = 0;
+  document.addEventListener('touchend', function(e){
+    var now = Date.now();
+    var delta = now - lastTap;
+    if(delta < 300 && delta > 0){ e.preventDefault(); }
+    lastTap = now;
+  }, { passive: false });
+
+  // Block Ctrl/Cmd + scroll wheel zoom
+  document.addEventListener('wheel', function(e){
+    if(e.ctrlKey || e.metaKey){ e.preventDefault(); }
+  }, { passive: false });
+
+  // Block Ctrl/Cmd +/- keyboard zoom
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')){
+      e.preventDefault();
+    }
+  });
+
+  // Prevent gesturestart / gesturechange (Safari-specific pinch events)
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, { passive: false });
+  document.addEventListener('gestureend', function(e){ e.preventDefault(); }, { passive: false });
+})();
+</script>
+
 <!-- ============================== AUTH GATE ============================== -->
 <div id="authGate" class="auth-gate">
   <div class="auth-card">
-    <img src="icon-192.png" alt="">
-    <p class="eyebrow">GYM LOG</p>
-    <h1>Build a habit<br>you can trust.</h1>
-    <p class="auth-copy" id="authSubcopy">Sign in to keep your workouts in sync.</p>
-    <div class="auth-switch">
-      <button id="authTabSignin" class="active" type="button">Sign in</button>
-      <button id="authTabSignup" type="button">Create account</button>
+    <div id="authProgress" class="auth-progress hidden"></div>
+
+    <div class="auth-steps" id="authSteps">
+      <!-- STEP 1 — welcome / method picker -->
+      <section class="auth-step active" data-step="welcome">
+        <img src="icon-192.png" alt="">
+        <p class="eyebrow">GYM LOG</p>
+        <h1>Build a habit<br>you can trust.</h1>
+        <p class="auth-copy" id="authWelcomeCopy">Sign in to keep your workouts in sync.</p>
+
+        <button id="googleAuthBtn" class="btn google full" type="button">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62Z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.95v2.33A9 9 0 0 0 9 18Z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.16.29-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.83.95 4.03l3-2.33Z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .95 4.97l3 2.33C4.66 5.17 6.65 3.58 9 3.58Z"/></svg>
+          <span id="googleAuthLabel">Continue with Google</span>
+        </button>
+        <div class="auth-or">or</div>
+        <button id="emailAuthBtn" class="btn secondary full" type="button">Continue with email</button>
+
+        <p class="auth-switch-line">
+          <span id="authSwitchPrompt">Don&rsquo;t have an account?</span>
+          <button id="authSwitchLink" class="text-btn" type="button">Create one</button>
+        </p>
+        <button id="authGuestBtn" class="text-btn auth-guest-link" type="button">Skip for now</button>
+        <p id="authError" class="form-error hidden" role="alert"></p>
+      </section>
+
+      <!-- STEP 2 — email + password -->
+      <section class="auth-step with-back" data-step="credentials">
+        <button class="auth-back" type="button" data-back aria-label="Back">‹</button>
+        <p class="eyebrow" id="credEyebrow">SIGN IN</p>
+        <h1 id="credTitle">Welcome back.</h1>
+        <form id="authCredForm" novalidate>
+          <label class="field-label">Email
+            <div class="field-wrap">
+              <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+              <span class="field-status" id="emailStatus"></span>
+            </div>
+            <span class="field-hint hidden" id="emailHint">Enter a valid email address.</span>
+          </label>
+          <label class="field-label">Password
+            <div class="field-wrap">
+              <input id="authPassword" type="password" autocomplete="current-password" placeholder="6+ characters" minlength="6" required>
+              <span class="field-status" id="passwordStatus"></span>
+            </div>
+          </label>
+          <label class="field-label hidden" id="authConfirmLabel">Confirm password
+            <div class="field-wrap">
+              <input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" minlength="6">
+              <span class="field-status" id="confirmStatus"></span>
+            </div>
+          </label>
+          <p id="credError" class="form-error hidden" role="alert"></p>
+          <button id="credNextBtn" class="btn primary full" type="submit">Sign in</button>
+        </form>
+        <button id="authForgotBtn" class="text-btn" type="button" style="display:block;margin:12px auto 0;">Forgot password?</button>
+      </section>
+
+      <!-- STEP 3 — name -->
+      <section class="auth-step with-back" data-step="name">
+        <button class="auth-back" type="button" data-back aria-label="Back">‹</button>
+        <p class="eyebrow">ABOUT YOU</p>
+        <h1>What should we call you?</h1>
+        <form id="authNameForm" novalidate>
+          <label class="field-label">Your name
+            <div class="field-wrap">
+              <input id="authName" type="text" autocomplete="given-name" placeholder="e.g. Arjun" required>
+            </div>
+          </label>
+          <p id="nameError" class="form-error hidden" role="alert"></p>
+          <button class="btn primary full" type="submit">Continue</button>
+        </form>
+      </section>
+
+      <!-- STEP 4 — age & weight -->
+      <section class="auth-step with-back" data-step="stats">
+        <button class="auth-back" type="button" data-back aria-label="Back">‹</button>
+        <p class="eyebrow">ABOUT YOU</p>
+        <h1>A little about your body.</h1>
+        <form id="authStatsForm" novalidate>
+          <div class="stepper-row">
+            <div class="auth-stepper" data-min="10" data-max="99" data-increment="1">
+              <span class="stepper-label">Age</span>
+              <div class="stepper-controls">
+                <button type="button" class="stepper-btn" data-dir="-1" aria-label="Decrease age">–</button>
+                <input id="authAge" type="number" inputmode="numeric" value="25" required>
+                <button type="button" class="stepper-btn" data-dir="1" aria-label="Increase age">+</button>
+              </div>
+            </div>
+            <div class="auth-stepper" data-min="30" data-max="300" data-increment="0.5">
+              <span class="stepper-label">Weight (kg)</span>
+              <div class="stepper-controls">
+                <button type="button" class="stepper-btn" data-dir="-1" aria-label="Decrease weight">–</button>
+                <input id="authWeight" type="number" inputmode="decimal" value="70" required>
+                <button type="button" class="stepper-btn" data-dir="1" aria-label="Increase weight">+</button>
+              </div>
+            </div>
+          </div>
+          <p id="statsError" class="form-error hidden" role="alert"></p>
+          <button class="btn primary full" type="submit">Continue</button>
+        </form>
+      </section>
+
+      <!-- STEP 5 — goal -->
+      <section class="auth-step with-back" data-step="goal">
+        <button class="auth-back" type="button" data-back aria-label="Back">‹</button>
+        <p class="eyebrow">YOUR GOAL</p>
+        <h1>What are you working toward?</h1>
+        <form id="authGoalForm" novalidate>
+          <div class="stepper-row single">
+            <div class="auth-stepper" data-min="1" data-max="100" data-increment="0.5">
+              <span class="stepper-label">Reduce weight by (kg)</span>
+              <div class="stepper-controls">
+                <button type="button" class="stepper-btn" data-dir="-1" aria-label="Decrease goal">–</button>
+                <input id="authGoalKg" type="number" inputmode="decimal" value="5" required>
+                <button type="button" class="stepper-btn" data-dir="1" aria-label="Increase goal">+</button>
+              </div>
+            </div>
+          </div>
+          <p id="goalError" class="form-error hidden" role="alert"></p>
+          <button id="finishSignupBtn" class="btn primary full" type="submit">Create account</button>
+        </form>
+      </section>
     </div>
-    <form id="authForm">
-      <label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
-      <label>Password<input id="authPassword" type="password" autocomplete="current-password" placeholder="6+ characters" minlength="6" required></label>
-      <label id="authConfirmLabel" class="hidden">Confirm password<input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Repeat password" minlength="6"></label>
-      <p id="authError" class="form-error hidden" role="alert"></p>
-      <button id="authSubmitBtn" class="btn primary full" type="submit">Sign in</button>
-    </form>
-    <button id="authForgotBtn" class="text-btn" type="button" style="display:block;margin:12px auto 0;">Forgot password?</button>
-    <div class="auth-or">or</div>
-    <button id="authGuestBtn" class="btn secondary full" type="button">Skip for now</button>
-    <p class="fine-print">Preview is view-only. Create an account to save.</p>
   </div>
 </div>
 
@@ -64,7 +207,6 @@
             <circle class="ring-track" cx="52" cy="52" r="46"></circle>
             <circle id="ringFill" class="ring-fill" cx="52" cy="52" r="46"></circle>
           </g>
-          <!-- Badge inside ring -->
           <g id="ringBadgeGroup" transform="rotate(90 52 52)" style="pointer-events:none"></g>
         </svg>
         <div class="ring-label">
@@ -81,30 +223,40 @@
       <div id="weekStrip" class="week-strip"></div>
     </div>
 
-    <div id="planPreviewCard" class="card plan-preview-card">
-      <div class="icon"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2.4"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="M9 11h6M9 15h6"/></svg></div>
-      <div><h4 id="planPreviewTitle">Plan today's workout</h4><p id="planPreviewSub">Add exercises, sets, and reps</p></div>
-    </div>
+    <!-- TODAY'S WORKOUT — Planner -->
+    <section class="section">
+      <div class="section-head">
+        <div><p class="eyebrow">TODAY'S WORKOUT</p><h2 id="plannerTitle">Plan your workout</h2></div>
+        <button id="plannerSaveBtn" class="btn-save-plan hidden" type="button">Save</button>
+      </div>
 
-    <div id="achievementBanner" class="achievement-banner hidden">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v1a4 4 0 0 0 3.5 4M17 5h3v1a4 4 0 0 1-3.5 4M9.5 17.5h5M12 13v4.5M8 21h8"/></svg>
-      <div><h4>Milestone reached</h4><p id="achievementText">Streak milestone!</p></div>
-    </div>
+      <!-- Exercise list -->
+      <div id="plannerExerciseList" class="planner-exercise-list"></div>
 
-    <!-- Gamification Section (XP + Achievements) -->
+      <!-- Empty state -->
+      <div id="plannerEmpty" class="planner-empty hidden">
+        <p>No exercises yet.<br>Add one to build your workout.</p>
+      </div>
+
+      <!-- Add exercise button -->
+      <button id="plannerAddBtn" class="planner-add-btn" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:2.4"><path d="M12 5v14M5 12h14"/></svg>
+        Add exercise
+      </button>
+    </section>
+
+    <!-- Gamification: XP, Rank & Achievements -->
     <section class="section" id="gamificationSection"></section>
 
     <!-- Daily Missions -->
     <section class="section" id="dailyMissionsSection"></section>
-    
-      <!-- Recent Activity (last 3 days only) -->
+
+    <!-- Recent Activity -->
     <section class="section">
       <div class="section-head"><div><p class="eyebrow">RECENT</p><h2>Activity</h2></div></div>
       <div id="recentActivity" class="activity-list"></div>
     </section>
-    
   </section>
-
 
   <!-- ---------- PROGRESS (calendar + stats) ---------- -->
   <section id="panel-progress" class="screen hidden">
@@ -145,15 +297,15 @@
   </section>
 </main>
 
-<!-- ============================== FAB ============================== -->
+<!-- ============================== FAB — Start Workout ============================== -->
 <nav id="tabBar" class="tab-bar hidden">
   <div class="tab-bar-inner">
     <button id="tabHome" class="tab-btn active" data-tab="home" type="button">
       <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5Z"/><path d="M9 21V12h6v9"/></svg>
       Home
     </button>
-    <button id="fabLog" class="fab" type="button" aria-label="Log today">
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <button id="fabStartWorkout" class="fab" type="button" aria-label="Start workout">
+      <svg viewBox="0 0 24 24" width="22" height="22" style="stroke:#fff;fill:none;stroke-width:2.4"><path d="M5 3l14 9-14 9V3z"/></svg>
     </button>
     <button id="tabProgress" class="tab-btn" data-tab="progress" type="button">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -165,6 +317,45 @@
 <div id="sheetScrim" class="sheet-scrim"></div>
 <div id="toastEl" class="notice"></div>
 <canvas id="confettiCanvas"></canvas>
+
+<!-- ============================== INSTALL BANNER ============================== -->
+<div id="installBanner" class="install-banner hidden" role="banner" aria-live="polite">
+  <!-- Android / Chrome — native prompt -->
+  <div id="installNative" class="install-content hidden">
+    <div class="install-icon-wrap">
+      <img src="icon-192.png" alt="" class="install-icon">
+      <div class="install-icon-badge">
+        <svg viewBox="0 0 24 24" width="12" height="12" style="stroke:#fff;fill:none;stroke-width:2.6"><path d="M12 4v13M6 11l6 6 6-6"/></svg>
+      </div>
+    </div>
+    <div class="install-text">
+      <strong>Add Gym Log to your home screen</strong>
+      <span>Works offline · No app store needed</span>
+    </div>
+    <div class="install-actions">
+      <button id="installDismissBtn" class="install-dismiss" type="button" aria-label="Dismiss">
+        <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <button id="installBtn" class="install-cta" type="button">Install</button>
+    </div>
+  </div>
+
+  <!-- iOS Safari — manual instructions -->
+  <div id="installIos" class="install-content hidden">
+    <div class="install-icon-wrap">
+      <img src="icon-192.png" alt="" class="install-icon">
+    </div>
+    <div class="install-text">
+      <strong>Add to Home Screen</strong>
+      <span>Tap <span class="ios-share-icon">
+        <svg viewBox="0 0 24 24" width="13" height="13" style="stroke:currentColor;fill:none;stroke-width:2;vertical-align:middle;margin:-1px 1px 0"><path d="M8 6.5 12 2.5l4 4M12 2.5v13"/><path d="M5 12.5v5.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V12.5"/></svg>
+      </span> then <em>"Add to Home Screen"</em></span>
+    </div>
+    <button id="installIosDismissBtn" class="install-dismiss" type="button" aria-label="Dismiss">
+      <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+</div>
 
 <!-- ============================== LOG SHEET ============================== -->
 <div id="logSheet" class="sheet hidden" role="dialog" aria-modal="true">
@@ -201,23 +392,120 @@
   <div class="sheet-actions"><button id="detailEditBtn" class="btn primary full" type="button">Edit entry</button></div>
 </div>
 
-<!-- ============================== PLAN SHEET ============================== -->
-<div id="planSheet" class="sheet hidden" role="dialog" aria-modal="true">
-  <div class="sheet-grip"></div>
-  <button id="planSheetClose" class="sheet-close" type="button">×</button>
-  <p class="eyebrow">PLAN &amp; LOG</p>
-  <h2>Today's workout</h2>
-  <p class="sub" id="planSheetDate">—</p>
-  <div id="planEditorCard" class="card plan-editor-card">
-    <textarea id="planTextInput" class="plan-text" rows="3" placeholder="e.g. Lower body strength — focus, intention, or warm-up…"></textarea>
-    <button id="planCompleteToggle" class="plan-complete-toggle" type="button" aria-pressed="false" aria-label="Mark plan as done"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/></svg></button>
+<!-- ============================== WORKOUT MODE (full-screen overlay) ============================== -->
+<div id="workoutMode" class="workout-mode hidden" role="dialog" aria-modal="true" aria-label="Workout mode">
+
+  <!-- Header -->
+  <div class="wm-header">
+    <button id="wmExitBtn" class="wm-exit-btn" type="button" aria-label="Exit workout">
+      <svg viewBox="0 0 24 24" width="20" height="20" style="stroke:currentColor;fill:none;stroke-width:2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="wm-header-info">
+      <p id="wmExerciseCounter" class="eyebrow">Exercise 1 of 1</p>
+      <div class="wm-progress-bar"><div id="wmProgressFill" class="wm-progress-fill" style="transition:width .6s cubic-bezier(.22,1,.36,1)"></div></div>
+    </div>
+    <div style="width:40px"></div>
   </div>
-  <div class="section-head" style="margin-top:20px"><h3>Exercises</h3></div>
-  <div id="exerciseCards" class="exercise-cards"></div>
-  <p id="emptyExercises" class="empty-copy muted" style="font-size:.82rem;margin:10px 0">Add exercises as you move through your workout.</p>
-  <button id="addExerciseBtn" class="add-exercise-btn" type="button" style="margin-top:10px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:2.2"><path d="M12 5v14M5 12h14"/></svg>Add exercise</button>
-  <div class="field"><label>Notes</label><textarea id="planNotesInput" rows="3" placeholder="Wins, cues, energy, recovery…"></textarea></div>
-  <div class="sheet-actions"><button id="planSheetDone" class="btn primary full" type="button">Done</button></div>
+
+  <!-- Exercise view -->
+  <div id="wmExerciseView" class="wm-exercise-view">
+    <div class="wm-exercise-name-wrap">
+      <h1 id="wmExerciseName" class="wm-exercise-name">—</h1>
+      <p id="wmExerciseTarget" class="wm-exercise-target">—</p>
+    </div>
+
+    <!-- Sets -->
+    <div id="wmSetsContainer" class="wm-sets-container"></div>
+
+    <button id="wmCompleteExerciseBtn" class="btn primary full wm-complete-btn" type="button">
+      Next exercise →
+    </button>
+  </div>
+
+  <!-- Rest timer view -->
+  <div id="wmRestView" class="wm-rest-view hidden">
+    <p class="eyebrow" style="text-align:center;margin-bottom:8px">REST</p>
+    <div id="wmTimerDisplay" class="wm-timer-display">60</div>
+    <p class="wm-timer-label">seconds</p>
+    <div class="wm-timer-actions">
+      <button id="wmSkipRestBtn" class="btn secondary" type="button">Skip</button>
+      <button id="wmAddTimeBtn" class="btn secondary" type="button">+30s</button>
+    </div>
+  </div>
+
+  <!-- Exercise complete view -->
+  <div id="wmExerciseDoneView" class="wm-exercise-done-view hidden">
+    <div class="wm-done-icon">✅</div>
+    <h2 class="wm-done-title">Exercise complete</h2>
+    <p id="wmExerciseDoneName" class="wm-done-sub">—</p>
+    <button id="wmNextExerciseBtn" class="btn primary full" type="button" style="margin-top:32px">Next exercise →</button>
+  </div>
+
+  <!-- Cardio mode view -->
+  <div id="wmCardioView" class="wm-cardio-view hidden">
+    <div class="cardio-pulse-ring">
+      <svg class="cardio-ring-svg" viewBox="0 0 200 200">
+        <circle class="cardio-ring-track" cx="100" cy="100" r="88"/>
+        <circle id="cardioRingAnim" class="cardio-ring-spin" cx="100" cy="100" r="88"/>
+      </svg>
+      <div class="cardio-timer-inner">
+        <p class="eyebrow" style="margin:0 0 4px;text-align:center;letter-spacing:.14em">CARDIO</p>
+        <div id="cardioElapsed" class="cardio-elapsed">0:00</div>
+        <p id="cardioStatus" class="cardio-status-label">Keep going 💪</p>
+      </div>
+    </div>
+
+    <div id="cardioLaps" class="cardio-laps"></div>
+
+    <div class="cardio-actions">
+      <button id="cardioLapBtn" class="cardio-lap-btn" type="button">
+        <svg viewBox="0 0 24 24" width="18" height="18" style="stroke:currentColor;fill:none;stroke-width:2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Lap
+      </button>
+      <button id="cardioStopBtn" class="cardio-stop-btn" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" style="stroke:#fff;fill:#fff;stroke-width:0"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+        Stop & Save
+      </button>
+    </div>
+  </div>
+
+  <!-- Workout complete view -->
+  <div id="wmWorkoutDoneView" class="wm-workout-done-view hidden">
+    <div class="wm-done-icon">🎉</div>
+    <h2 class="wm-done-title">Workout complete!</h2>
+    <div class="wm-summary-grid" id="wmSummaryGrid">
+      <div class="wm-summary-item">
+        <strong id="wmSumExercises">0</strong>
+        <span id="wmSumExercisesLabel">Exercises</span>
+      </div>
+      <div class="wm-summary-item">
+        <strong id="wmSumSets">0</strong>
+        <span id="wmSumSetsLabel">Sets</span>
+      </div>
+      <div class="wm-summary-item">
+        <strong id="wmSumReps">0</strong>
+        <span id="wmSumRepsLabel">Total reps</span>
+      </div>
+      <div class="wm-summary-item">
+        <strong id="wmSumDuration">0:00</strong>
+        <span>Duration</span>
+      </div>
+    </div>
+    <div class="wm-summary-completion">
+      <div class="wm-completion-ring-wrap">
+        <svg viewBox="0 0 80 80" width="80" height="80">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--surface-3)" stroke-width="7"/>
+          <circle id="wmCompletionRing" cx="40" cy="40" r="34" fill="none" stroke="var(--ember)" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+            transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .8s cubic-bezier(.22,1.24,.36,1)"/>
+        </svg>
+        <span id="wmCompletionPct" class="wm-completion-pct">0%</span>
+      </div>
+      <span class="wm-completion-label">Completion</span>
+    </div>
+    <button id="wmFinishBtn" class="btn primary full" type="button" style="margin-top:32px">Done</button>
+  </div>
+
 </div>
 
 <!-- ============================== SETTINGS SHEET ============================== -->
@@ -252,17 +540,14 @@
     <div class="goal-track"><div id="goalBar"></div></div>
   </div>
 
-  <!-- Notification section -->
   <div id="notifTimeSection"></div>
-
-  <!-- Tokens / rewards section -->
   <div id="tokensSection"></div>
 
   <p class="settings-label" style="font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;margin:24px 0 8px">OTHER</p>
   <div class="list-group">
     <div class="list-row"><span class="left"><svg viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10Z"/><path d="M10 19.5a2 2 0 0 0 4 0"/></svg>Daily reminder (legacy)</span><label class="switch"><input id="reminderToggle" type="checkbox"><span class="track"></span></label></div>
     <button id="exportAllBtn" class="list-row" type="button"><span class="left"><svg viewBox="0 0 24 24"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 19.5h16"/></svg>Export CSV</span><span class="chev">›</span></button>
-    <div class="list-row"><span>Version</span><span class="muted" id="appVersionText">4.0.0</span></div>
+    <div class="list-row"><span>Version</span><span class="muted" id="appVersionText">4.1.0</span></div>
   </div>
 </div>
 

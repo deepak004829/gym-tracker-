@@ -2,7 +2,7 @@ window.GL = window.GL || {};
 
 GL.pageHome = (function () {
   const { $, escapeHtml, animateNumber } = GL.dom;
-  const { key, displayDate, last7Days } = GL.date;
+  const { key, displayDate } = GL.date;
   const { getState, getLog, currentStreak, todayPlan } = GL.store;
   const { icon } = GL.icons;
 
@@ -10,57 +10,65 @@ GL.pageHome = (function () {
   const RING_CIRC = 2 * Math.PI * RING_RADIUS;
   const GOAL_MILESTONES = [7, 14, 30, 50, 100, 150, 200, 365];
 
-  function renderHome({ onQuickStatus, onOpenPlan, onOpenDetail } = {}) {
+  function last7Days(today) {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(GL.date.key(d));
+    }
+    return days;
+  }
+
+  function renderHome({ onQuickStatus, onOpenDetail } = {}) {
     const state = getState();
     const today = key();
     const entry = getLog(today);
     const streak = currentStreak();
 
-    const weekWent = last7Days(today).filter((d) => getLog(d)?.status === "Went").length;
+    const weekWent = last7Days(today).filter(d => getLog(d)?.status === "Went").length;
     const ringPct = Math.min(1, weekWent / 7);
     $("ringFill").setAttribute("stroke-dasharray", `${RING_CIRC}`);
     $("ringFill").setAttribute("stroke-dashoffset", `${RING_CIRC * (1 - ringPct)}`);
     animateNumber($("ringCount"), streak);
     $("ringSub").textContent = entry
-      ? entry.status === "Went" ? "Logged for today. Nice work." : entry.status === "Rest" ? "Resting today — that counts too." : "Marked as missed. Tomorrow's a reset."
+      ? entry.status === "Went" ? "Logged for today. Nice work."
+        : entry.status === "Rest" ? "Resting today — that counts too."
+        : "Marked as missed. Tomorrow's a reset."
       : "Tap a status below to check in.";
 
     // Today status chips
-    document.querySelectorAll(".status-chip").forEach((chip) => {
+    document.querySelectorAll(".status-chip").forEach(chip => {
       chip.classList.toggle("done", entry?.status === chip.dataset.status);
       chip.onclick = () => onQuickStatus?.(chip.dataset.status);
     });
 
     // Week strip
     const strip = $("weekStrip");
-    strip.innerHTML = last7Days(today).map((d) => {
+    strip.innerHTML = last7Days(today).map(d => {
       const log = getLog(d);
       const cls = log ? log.status.toLowerCase() : "";
       const label = new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "narrow" });
       return `<div class="week-day"><span>${label}</span><div class="week-dot ${cls} ${d === today ? "today" : ""}" data-date="${d}">${log ? (log.status === "Went" ? "✓" : log.status === "Rest" ? "–" : "×") : ""}</div></div>`;
     }).join("");
-    strip.querySelectorAll(".week-dot").forEach((dot) => dot.onclick = () => onOpenDetail?.(dot.dataset.date));
+    strip.querySelectorAll(".week-dot").forEach(dot => dot.onclick = () => onOpenDetail?.(dot.dataset.date));
 
-    // Plan preview
-    const plan = todayPlan();
-    const planTitle = $("planPreviewTitle");
-    const planSub = $("planPreviewSub");
-    if (plan.title || plan.exercises.length) {
-      planTitle.textContent = plan.title || "Today's workout";
-      planSub.textContent = plan.exercises.length ? `${plan.exercises.length} exercise${plan.exercises.length === 1 ? "" : "s"} planned` : "Tap to add exercises";
-    } else {
-      planTitle.textContent = "Plan today's workout";
-      planSub.textContent = "Add exercises, sets, and reps";
+    // Planner title
+    const plannerTitle = $("plannerTitle");
+    if (plannerTitle) {
+      const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long" });
+      plannerTitle.textContent = `${dateLabel}'s workout`;
     }
-    $("planPreviewCard").onclick = () => onOpenPlan?.();
 
-    // Achievement banner — only surfaces on a fresh milestone.
+    // Achievement banner — only on fresh milestones
     const banner = $("achievementBanner");
-    if (GOAL_MILESTONES.includes(streak) && !state.celebratedStreaks.has(streak)) {
-      banner.classList.remove("hidden");
-      $("achievementText").textContent = `${streak}-day streak. Keep it rolling.`;
-    } else if (!GOAL_MILESTONES.includes(streak)) {
-      banner.classList.add("hidden");
+    if (banner) {
+      if (GOAL_MILESTONES.includes(streak) && !state.celebratedStreaks.has(streak)) {
+        banner.classList.remove("hidden");
+        const achText = $("achievementText");
+        if (achText) achText.textContent = `${streak}-day streak. Keep it rolling.`;
+      } else if (!GOAL_MILESTONES.includes(streak)) {
+        banner.classList.add("hidden");
+      }
     }
 
     renderRingBadge(streak);
@@ -73,10 +81,8 @@ GL.pageHome = (function () {
     const gEl = document.getElementById("ringBadgeGroup");
     if (!gEl) return;
     const g = GL.gamification;
+    if (!g) return;
     const rank = g.getCurrentRank();
-    const lvl = g.getLevelInfo();
-
-    // Show rank badge inside ring
     gEl.innerHTML = `
       <text x="52" y="48" text-anchor="middle" font-size="20" dominant-baseline="middle">${rank.emoji}</text>
       <text x="52" y="64" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.75)" font-weight="700">${rank.name.toUpperCase()}</text>
@@ -86,23 +92,16 @@ GL.pageHome = (function () {
   function renderGamificationSection() {
     const container = document.getElementById("gamificationSection");
     if (!container) return;
-
     const g = GL.gamification;
+    if (!g) return;
+
     const rank = g.getCurrentRank();
     const nextRank = g.getNextRank();
     const lvl = g.getLevelInfo();
     const data = g.getData();
     const stats = g.computeStats();
 
-    // XP bar fill
     const xpPct = Math.min(100, Math.round((lvl.levelXP / lvl.levelNeeded) * 100));
-
-    // Progress bar chars
-    const filled = Math.round(xpPct / 10);
-    const empty = 10 - filled;
-    const xpBar = "█".repeat(filled) + "░".repeat(empty);
-
-    // Achievements — surface only what's relevant: the last one earned, and the next one within reach.
     const earned = data.earnedAchievements;
     const allAch = g.ACHIEVEMENTS;
     const lastEarned = earned.length ? allAch.find(a => a.id === earned[earned.length - 1]) : null;
@@ -111,25 +110,16 @@ GL.pageHome = (function () {
     const featuredHTML = [
       lastEarned ? `<div class="ach-item earned ach-featured">
         <span class="ach-emoji">${lastEarned.emoji}</span>
-        <div class="ach-info">
-          <strong>${lastEarned.label}</strong>
-          <p>${lastEarned.desc}</p>
-        </div>
+        <div class="ach-info"><strong>${lastEarned.label}</strong><p>${lastEarned.desc}</p></div>
         <span class="ach-check">✓</span>
       </div>` : "",
       nextUp ? `<div class="ach-item locked ach-featured">
         <span class="ach-emoji">${nextUp.emoji}</span>
-        <div class="ach-info">
-          <strong>${nextUp.label}</strong>
-          <p class="ach-provoke">${provokeCopy(nextUp, stats)}</p>
-        </div>
+        <div class="ach-info"><strong>${nextUp.label}</strong><p class="ach-provoke">${provokeCopy(nextUp, stats)}</p></div>
         <span class="ach-lock">🔒</span>
       </div>` : (lastEarned ? `<div class="ach-item earned ach-featured">
         <span class="ach-emoji">🏆</span>
-        <div class="ach-info">
-          <strong>All achievements unlocked</strong>
-          <p>You've cleared the Hall of Fame.</p>
-        </div>
+        <div class="ach-info"><strong>All achievements unlocked</strong><p>You've cleared the Hall of Fame.</p></div>
       </div>` : ""),
     ].join("");
 
@@ -137,10 +127,7 @@ GL.pageHome = (function () {
       const isEarned = earned.includes(a.id);
       return `<div class="ach-item ${isEarned ? "earned" : "locked"}">
         <span class="ach-emoji">${a.emoji}</span>
-        <div class="ach-info">
-          <strong>${a.label}</strong>
-          <p>${a.desc}</p>
-        </div>
+        <div class="ach-info"><strong>${a.label}</strong><p>${a.desc}</p></div>
         ${isEarned ? '<span class="ach-check">✓</span>' : '<span class="ach-lock">🔒</span>'}
       </div>`;
     }).join("");
@@ -155,7 +142,9 @@ GL.pageHome = (function () {
               <strong class="rank-name">${rank.name}</strong>
             </div>
           </div>
-          ${nextRank ? `<div class="rank-next"><span class="muted" style="font-size:.7rem">Next: ${nextRank.emoji} ${nextRank.name}</span><span class="muted" style="font-size:.7rem">${nextRank.minXP - data.totalXP} XP away</span></div>` : `<span class="rank-max">MAX RANK 💎</span>`}
+          ${nextRank
+            ? `<div class="rank-next"><span class="muted" style="font-size:.7rem">Next: ${nextRank.emoji} ${nextRank.name}</span><span class="muted" style="font-size:.7rem">${nextRank.minXP - data.totalXP} XP away</span></div>`
+            : `<span class="rank-max">MAX RANK 💎</span>`}
         </div>
         <div class="xp-section">
           <div class="xp-header">
@@ -186,7 +175,6 @@ GL.pageHome = (function () {
     }
   }
 
-  // A short nudge tailored to how close the person actually is to unlocking `a`.
   function provokeCopy(a, stats) {
     const progress = {
       first_workout:  { have: stats.totalWent, need: 1 },
@@ -215,8 +203,9 @@ GL.pageHome = (function () {
   function renderDailyMissions() {
     const container = document.getElementById("dailyMissionsSection");
     if (!container) return;
-
     const g = GL.gamification;
+    if (!g) return;
+
     const missions = g.getTodayMissions();
     const state = getState();
     const today = key();
@@ -257,25 +246,22 @@ GL.pageHome = (function () {
 
   function renderRecentActivity(onOpenDetail) {
     const state = getState();
-    // Only last 3 days
     const today = key();
     const last3 = [];
     for (let i = 0; i < 3; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const d = new Date(); d.setDate(d.getDate() - i);
       last3.push(GL.date.key(d));
     }
 
     const list = $("recentActivity");
+    if (!list) return;
+
     if (!state.logs.length) {
       list.innerHTML = `<div class="empty-state">${icon("empty")}<p>No check-ins yet.<br>Log today to start your streak.</p></div>`;
       return;
     }
 
-    const items = last3.map(date => {
-      const item = state.logs.find(l => l.date === date);
-      return { date, item };
-    });
+    const items = last3.map(date => ({ date, item: state.logs.find(l => l.date === date) }));
 
     list.innerHTML = items.map(({ date, item }) => {
       const label = new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
@@ -295,7 +281,7 @@ GL.pageHome = (function () {
       </button>`;
     }).join("");
 
-    list.querySelectorAll("button").forEach((button) => button.onclick = () => onOpenDetail?.(button.dataset.date));
+    list.querySelectorAll("button").forEach(btn => btn.onclick = () => onOpenDetail?.(btn.dataset.date));
   }
 
   return { renderHome };

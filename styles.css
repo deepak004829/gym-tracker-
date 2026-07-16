@@ -1,3 +1,5 @@
+/* ===== ZOOM LOCK =====*/
+html, body { touch-action: pan-x pan-y; -ms-touch-action: pan-x pan-y; overscroll-behavior: none; }
 /* ===================================================================
    GYM LOG — design system
    Concept: "Momentum" — a stopwatch-and-chalk athletic identity.
@@ -95,10 +97,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .section-head h2,.section-head h3{margin:0;font-family:var(--font-display);font-weight:800;letter-spacing:-.02em;font-size:1.05rem}
 .section-head .link-btn{font-size:.78rem;font-weight:800;color:var(--ember)}
 
-/* toast / notice
+/* toast / notice */
 .notice{position:fixed;left:50%;top:calc(var(--safe-t) + 12px);transform:translate(-50%,-140%);z-index:80;background:var(--ink-900);color:#fff;padding:11px 18px;border-radius:var(--radius-pill);font-size:.82rem;font-weight:650;box-shadow:var(--shadow-2);transition:transform var(--dur-2) var(--ease-spring),opacity var(--dur-2) var(--ease-spring),visibility 0s linear var(--dur-2);max-width:90vw;text-align:center;opacity:0;visibility:hidden}
 .notice.show{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform var(--dur-2) var(--ease-spring),opacity var(--dur-2) var(--ease-spring),visibility 0s}
-body.dark .notice{background:var(--surface-2);border:1px solid var(--line)} */
+body.dark .notice{background:var(--surface-2);border:1px solid var(--line)}
 
 /* skeletons */
 .skel{position:relative;overflow:hidden;background:var(--surface-2);border-radius:var(--radius-sm)}
@@ -322,17 +324,69 @@ body.dark .notice{background:var(--surface-2);border:1px solid var(--line)} */
 .auth-card h1{margin:0;font-family:var(--font-display);font-size:2rem;letter-spacing:-.04em;line-height:1.05}
 .auth-card .eyebrow{color:var(--ember)}
 .auth-copy{color:rgba(255,255,255,.6);font-size:.85rem;line-height:1.5;margin:12px 0 20px}
-.auth-switch{display:grid;grid-template-columns:1fr 1fr;background:rgba(255,255,255,.06);padding:4px;border-radius:13px;margin-bottom:16px}
-.auth-switch button{background:transparent;color:rgba(255,255,255,.55);padding:10px;border-radius:9px;font-size:.8rem;font-weight:750}
-.auth-switch .active{background:rgba(255,255,255,.12);color:#fff}
-.auth-card label{display:block;font-size:.76rem;font-weight:700;margin:12px 0 6px;color:rgba(255,255,255,.7)}
-.auth-card input{width:100%;padding:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:12px;color:#fff}
+.auth-card label{display:block;font-size:.76rem;font-weight:700;margin:14px 0 6px;color:rgba(255,255,255,.7)}
+.auth-card input{width:100%;padding:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:12px;color:#fff;font-size:.95rem;transition:border-color var(--dur-2) var(--ease-out)}
 .auth-card input::placeholder{color:rgba(255,255,255,.32)}
+.auth-card input:focus{outline:none;border-color:rgba(255,255,255,.4)}
 .form-error{color:#ff8a7a;font-size:.79rem;margin:9px 0 0}
 .auth-or{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.4);font-size:.72rem;margin:18px 0 13px}
 .auth-or::before,.auth-or::after{content:"";height:1px;background:rgba(255,255,255,.14);flex:1}
 .text-btn{background:none;color:var(--ember);font-weight:750;font-size:.82rem}
-.auth-card .fine-print{margin:12px 0 0;color:rgba(255,255,255,.4);font-size:.72rem;text-align:center;line-height:1.4}
+.auth-card .fine-print{margin:16px 0 0;color:rgba(255,255,255,.4);font-size:.72rem;text-align:center;line-height:1.4}
+
+/* ---- multi-step flow: all steps stack in one grid cell so the card
+   never resizes/jumps between steps, and we crossfade the active one ---- */
+.auth-steps{position:relative;display:grid;min-height:340px}
+.auth-steps > .auth-step{grid-area:1/1;opacity:0;transform:translateX(10px) scale(.98);pointer-events:none;transition:opacity var(--dur-3) var(--ease-out),transform var(--dur-3) var(--ease-out);display:flex;flex-direction:column;justify-content:center}
+.auth-steps > .auth-step.active{opacity:1;transform:none;pointer-events:auto}
+.auth-steps > .auth-step.leaving-back{transform:translateX(-10px) scale(.98)}
+.auth-step{position:relative}
+.auth-step.with-back{padding-top:56px}
+.auth-back{position:absolute;top:0;left:0;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;font-size:1.3rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.auth-back:active{transform:scale(.92)}
+.auth-step h1{margin-bottom:22px}
+.auth-progress{display:flex;gap:6px;justify-content:center;margin-bottom:18px}
+.auth-progress.hidden{display:none}
+.auth-progress span{height:5px;width:22px;border-radius:99px;background:rgba(255,255,255,.14);transition:background var(--dur-2) var(--ease-out)}
+.auth-progress span.done{background:var(--ember)}
+.auth-progress span.current{background:#fff}
+
+.btn.google{background:#fff;color:#1a1a1a;gap:10px}
+.btn.google:active{transform:scale(.96)}
+.btn.google svg{flex:none}
+
+.auth-switch-line{margin:16px 0 0;text-align:center;font-size:.8rem;color:rgba(255,255,255,.55)}
+.auth-switch-line .text-btn{color:var(--ember);font-weight:750;margin-left:4px}
+.auth-guest-link{display:block;margin:14px auto 0;color:rgba(255,255,255,.4)}
+
+/* ---- live field validation ---- */
+.field-label{margin:14px 0 6px}
+.field-wrap{position:relative}
+.field-wrap input{padding-right:38px}
+.field-status{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:18px;height:18px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity var(--dur-2) var(--ease-out)}
+.field-status::before{content:"";width:16px;height:16px;border-radius:50%;background-size:10px;background-repeat:no-repeat;background-position:center}
+.field-status.valid{opacity:1}
+.field-status.valid::before{background-color:color-mix(in srgb, #35d07f 22%, transparent);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%2335d07f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>")}
+.field-status.invalid{opacity:1}
+.field-status.invalid::before{background-color:color-mix(in srgb, #ff8a7a 22%, transparent);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%23ff8a7a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M4 4l8 8M12 4l-8 8'/></svg>")}
+.field-wrap input.invalid{border-color:rgba(255,138,122,.55)}
+.field-wrap input.valid{border-color:rgba(53,208,127,.5)}
+.field-hint{display:block;color:rgba(255,138,122,.85);font-size:.72rem;margin-top:6px}
+.field-hint.hidden{display:none}
+
+/* ---- stepper controls (replaces native number-input spinners) ---- */
+.auth-card input[type="number"]{-moz-appearance:textfield}
+.auth-card input[type="number"]::-webkit-outer-spin-button,
+.auth-card input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.stepper-row.single{grid-template-columns:1fr}
+.stepper-label{display:block;font-size:.76rem;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:8px}
+.stepper-controls{display:flex;align-items:stretch;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:14px;overflow:hidden}
+.stepper-controls input{border:none;background:transparent;text-align:center;padding:12px 0;font-family:var(--font-mono);font-size:1.15rem;font-weight:700;width:100%;-webkit-user-select:none}
+.stepper-btn{width:40px;flex:none;background:transparent;color:#fff;font-size:1.2rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background var(--dur-1) var(--ease-out)}
+.stepper-btn:active{background:rgba(255,255,255,.12);transform:none}
+.stepper-btn:first-child{border-right:1px solid rgba(255,255,255,.1)}
+.stepper-btn:last-child{border-left:1px solid rgba(255,255,255,.1)}
 .guest-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ember-soft);color:var(--ember-ink);border-radius:var(--radius-md);padding:11px 14px;margin:0 0 16px;font-size:.79rem;font-weight:650}
 .guest-banner button{font-weight:850;text-decoration:underline;color:inherit}
 body.dark .guest-banner{color:#fff}
@@ -469,3 +523,629 @@ body.dark .guest-banner{color:#fff}
 /* Activity item - empty state */
 .activity-item.activity-empty{background:var(--surface-2);opacity:.7}
 .dot.dot-empty{background:var(--surface-3);border:2px dashed var(--line)}
+
+/* ======================================================================
+   WORKOUT PLANNER — Today's Workout section on Home
+   ====================================================================== */
+
+.planner-exercise-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+
+.planner-ex-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:0;overflow:hidden;transition:transform var(--dur-2) var(--ease-spring),opacity var(--dur-2),box-shadow var(--dur-1)}
+.planner-ex-card:active{transform:scale(.99)}
+.planner-ex-card.removing{transform:translateX(-110%);opacity:0}
+
+.planner-ex-top{display:flex;align-items:center;gap:10px;padding:13px 13px 11px}
+.planner-ex-num{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--ember-soft);color:var(--ember);font-family:var(--font-mono);font-size:.66rem;font-weight:800;display:grid;place-items:center}
+.planner-ex-name{flex:1;font-weight:750;font-size:.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planner-ex-meta{font-size:.78rem;color:var(--muted);font-family:var(--font-mono)}
+
+.planner-ex-actions{display:flex;border-top:1px solid var(--line)}
+.planner-ex-actions button{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:.74rem;font-weight:750;color:var(--muted);transition:background var(--dur-1),color var(--dur-1);border-right:1px solid var(--line)}
+.planner-ex-actions button:last-child{border-right:none}
+.planner-ex-actions button:active{background:var(--surface-2)}
+.planner-ex-actions button svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2}
+.planner-ex-actions .del-btn{color:var(--miss)}
+.planner-ex-actions .del-btn:active{background:var(--miss-soft)}
+
+.planner-add-btn{width:100%;min-height:48px;border-radius:var(--radius-md);border:1.5px dashed var(--line);color:var(--ember);font-weight:750;font-size:.86rem;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;transition:background var(--dur-1),border-color var(--dur-1)}
+.planner-add-btn:active{background:var(--ember-soft);border-color:var(--ember)}
+
+.planner-empty{text-align:center;padding:28px 20px;color:var(--muted);font-size:.84rem;line-height:1.55}
+.planner-empty p{margin:0}
+
+.btn-save-plan{padding:7px 16px;border-radius:var(--radius-pill);background:var(--ember);color:#fff;font-size:.8rem;font-weight:750;transition:transform var(--dur-1) var(--ease-spring),opacity var(--dur-1)}
+.btn-save-plan:active{transform:scale(.94)}
+.btn-save-plan.hidden{display:none}
+
+/* Exercise editor sheet — reuses plan-sheet structure but cleaner */
+.ex-editor-sheet{padding:0 20px 32px}
+.ex-editor-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.ex-editor-field label{font-size:.72rem;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.ex-editor-field input{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px 14px;font-size:1rem;color:var(--text);transition:border-color var(--dur-1)}
+.ex-editor-field input:focus{outline:none;border-color:var(--ember)}
+.ex-editor-sets-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ======================================================================
+   WORKOUT MODE — Full-screen overlay
+   ====================================================================== */
+
+.workout-mode{
+  position:fixed;inset:0;z-index:100;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  padding:calc(var(--safe-t) + 0px) 0 calc(var(--safe-b) + 16px);
+  transition:opacity var(--dur-2) var(--ease-out);
+  overflow-y:auto;
+}
+.workout-mode.hidden{display:none}
+
+/* Header */
+.wm-header{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px 12px;
+  flex:0 0 auto;
+}
+.wm-exit-btn{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--line);
+  display:grid;place-items:center;flex:0 0 auto;
+  color:var(--text-dim);
+  transition:transform var(--dur-1) var(--ease-spring);
+}
+.wm-exit-btn:active{transform:scale(.9)}
+.wm-header-info{flex:1}
+.wm-progress-bar{height:4px;background:var(--surface-2);border-radius:99px;margin-top:6px;overflow:hidden}
+.wm-progress-fill{height:100%;background:var(--ember);border-radius:inherit;transition:width var(--dur-3) var(--ease-spring)}
+
+/* Exercise view */
+.wm-exercise-view{
+  flex:1;display:flex;flex-direction:column;
+  padding:0 20px;
+}
+.wm-exercise-name-wrap{
+  padding:20px 0 20px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:24px;
+}
+.wm-exercise-name{
+  font-family:var(--font-display);font-size:2.1rem;font-weight:800;
+  letter-spacing:-.04em;line-height:1.08;
+  margin:0 0 10px;color:var(--text);
+}
+.wm-exercise-target{
+  margin:0;
+  font-size:.84rem;color:var(--muted);
+  font-family:var(--font-mono);
+  display:inline-flex;align-items:center;gap:6px;
+}
+.wm-exercise-target::before{
+  content:'';display:inline-block;
+  width:6px;height:6px;border-radius:50%;
+  background:var(--ember);opacity:.7;
+}
+
+/* Set rows — floating elevated cards */
+.wm-sets-container{display:flex;flex-direction:column;gap:12px;flex:1}
+
+.wm-set-row{
+  display:flex;align-items:center;gap:14px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px 18px;
+  box-shadow:
+    0 2px 8px rgba(0,0,0,.06),
+    0 6px 24px rgba(0,0,0,.08),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  transition:
+    border-color var(--dur-2),
+    background var(--dur-2),
+    box-shadow var(--dur-2),
+    transform var(--dur-1) var(--ease-spring);
+}
+.wm-set-row:not(.completed):hover{
+  transform:translateY(-1px);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,.1),
+    0 10px 32px rgba(0,0,0,.1),
+    inset 0 1px 0 rgba(255,255,255,.09);
+}
+.wm-set-row.completed{
+  background:var(--ember-soft);
+  border-color:var(--ember);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,.04),
+    0 0 0 0 transparent,
+    inset 0 1px 0 rgba(255,255,255,.10);
+  transform:none;
+}
+
+/* Set number bubble */
+.wm-set-label{
+  flex:0 0 auto;
+  width:36px;height:36px;
+  border-radius:50%;
+  background:var(--surface-2);
+  border:1.5px solid var(--line);
+  display:grid;place-items:center;
+  font-size:.72rem;font-weight:800;
+  color:var(--text-dim);
+  letter-spacing:.03em;
+  line-height:1;
+}
+.wm-set-row.completed .wm-set-label{
+  background:var(--ember);
+  border-color:var(--ember);
+  color:#fff;
+}
+
+.wm-set-target{
+  flex:1;
+  font-size:.82rem;color:var(--muted);
+  font-family:var(--font-mono);
+}
+.wm-set-target strong{
+  display:block;
+  font-size:1rem;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:2px;
+}
+
+.wm-set-input-wrap{
+  display:flex;align-items:center;gap:10px;
+  flex:0 0 auto;
+}
+.wm-set-input-wrap label{
+  font-size:.72rem;color:var(--muted);
+  font-weight:600;letter-spacing:.04em;
+}
+.wm-set-input{
+  width:68px;height:48px;text-align:center;
+  background:var(--surface-2);
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  font-family:var(--font-mono);font-size:1.3rem;font-weight:800;
+  color:var(--text);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.08);
+  transition:border-color var(--dur-1),box-shadow var(--dur-1);
+}
+.wm-set-input:focus{
+  outline:none;
+  border-color:var(--ember);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.08),0 0 0 3px color-mix(in srgb, var(--ember) 20%, transparent);
+}
+
+.wm-set-done-btn{
+  width:44px;height:44px;border-radius:50%;
+  border:2px solid var(--line);
+  background:var(--surface-2);
+  display:grid;place-items:center;
+  flex:0 0 auto;color:var(--muted);
+  box-shadow:0 2px 8px rgba(0,0,0,.07);
+  transition:
+    transform var(--dur-1) var(--ease-spring),
+    background var(--dur-2),
+    border-color var(--dur-2),
+    color var(--dur-2),
+    box-shadow var(--dur-1);
+}
+.wm-set-done-btn:active{transform:scale(.82)}
+.wm-set-done-btn.done{
+  background:var(--ember);
+  border-color:var(--ember);
+  color:#fff;
+  box-shadow:0 4px 16px color-mix(in srgb, var(--ember) 45%, transparent);
+}
+.wm-set-done-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.8}
+
+.wm-complete-btn{margin-top:20px}
+
+/* Rest timer */
+.wm-rest-view{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:0 24px;
+}
+.wm-timer-display{
+  font-family:var(--font-mono);font-size:5.5rem;font-weight:800;
+  letter-spacing:-.04em;color:var(--text);
+  line-height:1;margin:8px 0 4px;
+}
+.wm-timer-label{font-size:.82rem;color:var(--muted);margin:0 0 40px}
+.wm-timer-actions{display:flex;gap:12px}
+
+/* Exercise done */
+.wm-exercise-done-view{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:0 24px;
+  text-align:center;
+}
+.wm-done-icon{font-size:3.2rem;line-height:1;margin-bottom:16px}
+.wm-done-title{font-family:var(--font-display);font-size:1.6rem;font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+.wm-done-sub{margin:0;font-size:.9rem;color:var(--muted)}
+
+/* Workout complete */
+.wm-workout-done-view{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:24px;
+  text-align:center;
+}
+.wm-summary-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
+  width:100%;max-width:320px;margin:28px 0 0;
+}
+.wm-summary-item{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius-md);padding:16px 12px;
+}
+.wm-summary-item strong{
+  display:block;font-family:var(--font-mono);font-size:1.8rem;
+  font-weight:800;letter-spacing:-.03em;color:var(--text);
+}
+.wm-summary-item span{font-size:.74rem;color:var(--muted);margin-top:2px;display:block}
+
+.wm-summary-completion{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  margin-top:24px;
+}
+.wm-completion-ring-wrap{position:relative;display:grid;place-items:center}
+.wm-completion-pct{
+  position:absolute;font-family:var(--font-mono);font-size:1rem;
+  font-weight:800;color:var(--ember);
+}
+.wm-completion-label{font-size:.76rem;color:var(--muted)}
+
+/* Exercise editor sheet (reused plan sheet) */
+#planSheet .planner-clean-header{padding:0 20px 0}
+
+/* ======================================================================
+   INSTALL BANNER
+   ====================================================================== */
+
+.install-banner{
+  position:fixed;
+  bottom:calc(var(--safe-b) + 72px); /* sit above tab bar */
+  left:12px;right:12px;
+  z-index:90;
+  pointer-events:none;
+}
+/* When no tab bar is visible yet (auth gate), sit lower */
+.install-banner.no-tabbar{
+  bottom:calc(var(--safe-b) + 16px);
+}
+.install-banner.hidden{display:none}
+
+.install-content{
+  display:flex;align-items:center;gap:12px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:14px 14px 14px 16px;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,.12),
+    0 16px 48px rgba(0,0,0,.16),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  pointer-events:all;
+  /* entry animation */
+  animation:installSlideUp .45s cubic-bezier(.22,1.24,.36,1) both;
+}
+.install-content.hidden{display:none}
+
+@keyframes installSlideUp{
+  from{opacity:0;transform:translateY(24px) scale(.97)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+/* Icon */
+.install-icon-wrap{
+  position:relative;flex:0 0 auto;
+}
+.install-icon{
+  width:44px;height:44px;border-radius:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+  display:block;
+}
+.install-icon-badge{
+  position:absolute;bottom:-4px;right:-4px;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--ember);
+  display:grid;place-items:center;
+  border:2px solid var(--surface);
+}
+
+/* Text */
+.install-text{
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;
+}
+.install-text strong{
+  font-size:.84rem;font-weight:750;color:var(--text);
+  line-height:1.2;
+}
+.install-text span{
+  font-size:.72rem;color:var(--muted);
+  line-height:1.3;
+}
+
+/* Actions */
+.install-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+
+.install-dismiss{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--line);
+  display:grid;place-items:center;
+  color:var(--muted);
+  transition:transform var(--dur-1) var(--ease-spring),background var(--dur-1);
+}
+.install-dismiss:active{transform:scale(.88);background:var(--surface-3)}
+
+.install-cta{
+  height:36px;padding:0 16px;
+  border-radius:99px;
+  background:var(--ember);color:#fff;
+  font-size:.8rem;font-weight:750;
+  white-space:nowrap;
+  box-shadow:0 4px 14px color-mix(in srgb, var(--ember) 40%, transparent);
+  transition:transform var(--dur-1) var(--ease-spring),opacity var(--dur-1);
+}
+.install-cta:active{transform:scale(.93);opacity:.9}
+
+/* iOS share icon inline */
+.ios-share-icon{
+  display:inline-flex;align-items:center;
+  color:var(--ember);
+}
+.install-text em{font-style:normal;font-weight:700;color:var(--text)}
+
+/* ======================================================================
+   CARDIO MODE VIEW
+   ====================================================================== */
+
+.wm-cardio-view{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:0 24px 16px;
+  gap:28px;
+}
+
+/* Pulse ring */
+.cardio-pulse-ring{
+  position:relative;
+  display:flex;align-items:center;justify-content:center;
+  flex:0 0 auto;
+}
+.cardio-ring-svg{
+  width:220px;height:220px;
+  filter:drop-shadow(0 0 18px color-mix(in srgb, var(--ember) 30%, transparent));
+}
+.cardio-ring-track{
+  fill:none;stroke:var(--surface-2);stroke-width:8;
+}
+.cardio-ring-spin{
+  fill:none;stroke:var(--ember);stroke-width:8;
+  stroke-linecap:round;
+  stroke-dasharray:553;
+  stroke-dashoffset:0;
+  transform-origin:center;
+  animation:cardioSpin 3s linear infinite;
+  opacity:.25;
+}
+@keyframes cardioSpin{
+  from{stroke-dashoffset:0}
+  to{stroke-dashoffset:-553}
+}
+
+/* Pulse overlay — second ring animates with a slower beat */
+.cardio-ring-svg::after{content:''}
+.cardio-pulse-ring::before{
+  content:'';
+  position:absolute;
+  width:200px;height:200px;
+  border-radius:50%;
+  border:2px solid var(--ember);
+  opacity:0;
+  animation:cardioPulse 2s ease-out infinite;
+}
+@keyframes cardioPulse{
+  0%{transform:scale(.9);opacity:.45}
+  100%{transform:scale(1.15);opacity:0}
+}
+
+.cardio-timer-inner{
+  position:absolute;
+  inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:4px;
+}
+.cardio-elapsed{
+  font-family:var(--font-mono);
+  font-size:3.4rem;font-weight:800;
+  letter-spacing:-.04em;
+  color:var(--text);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.cardio-status-label{
+  font-size:.74rem;color:var(--muted);
+  margin:0;letter-spacing:.02em;
+}
+
+/* Lap list */
+.cardio-laps{
+  width:100%;max-height:120px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:6px;
+}
+.cardio-lap-item{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:9px 14px;
+  animation:lapIn .25s cubic-bezier(.22,1.24,.36,1) both;
+}
+@keyframes lapIn{
+  from{opacity:0;transform:translateY(-8px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+.cardio-lap-item span:first-child{
+  font-size:.78rem;font-weight:700;color:var(--muted);
+}
+.cardio-lap-item span:last-child{
+  font-family:var(--font-mono);font-size:.88rem;font-weight:700;color:var(--text);
+}
+
+/* Action buttons */
+.cardio-actions{
+  display:flex;align-items:center;gap:14px;
+  width:100%;
+}
+.cardio-lap-btn{
+  height:52px;flex:0 0 auto;padding:0 20px;
+  border-radius:99px;
+  background:var(--surface);border:1.5px solid var(--line);
+  display:flex;align-items:center;gap:7px;
+  font-size:.84rem;font-weight:750;color:var(--text);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  transition:transform var(--dur-1) var(--ease-spring),background var(--dur-1);
+}
+.cardio-lap-btn:active{transform:scale(.93);background:var(--surface-2)}
+
+.cardio-stop-btn{
+  flex:1;height:56px;
+  border-radius:99px;
+  background:var(--ember);color:#fff;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:.92rem;font-weight:750;
+  box-shadow:
+    0 4px 16px color-mix(in srgb, var(--ember) 40%, transparent),
+    0 1px 0 rgba(255,255,255,.15) inset;
+  transition:transform var(--dur-1) var(--ease-spring),opacity var(--dur-1);
+}
+.cardio-stop-btn:active{transform:scale(.96);opacity:.92}
+
+/* ======================================================================
+   v3 NEW: Gamification, Signup profile, Install button, Drag handle
+   ====================================================================== */
+
+/* Achievement banner on home */
+.achievement-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--ember-soft), color-mix(in srgb, var(--ember) 12%, transparent));
+  border: 1px solid color-mix(in srgb, var(--ember) 30%, var(--line));
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 0 16px 12px;
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--ember);
+}
+.achievement-banner.hidden { display: none; }
+.ach-banner-emoji { font-size: 1.3rem; }
+
+/* Gamification section on home */
+#gamificationSection { padding-bottom: 4px; }
+#dailyMissionsSection { padding-bottom: 4px; }
+
+/* Drag handle in planner (Spotify-style grip dots) */
+.planner-ex-drag {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  color: var(--muted);
+  margin-left: -4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-1), background var(--dur-1);
+}
+.planner-ex-drag:active { cursor: grabbing; color: var(--ember); background: var(--ember-soft); }
+.planner-ex-drag:hover { color: var(--text-dim); }
+
+/* Adjust planner top row to accommodate drag handle */
+.planner-ex-top { gap: 6px; }
+
+/* Auth signup profile fields */
+#authProfileFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+#authProfileFields label { color: var(--text); }
+.auth-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.auth-row-2 label { margin: 0; }
+
+/* Settings install button */
+.settings-install-wrap {
+  margin-top: 4px;
+  padding-bottom: 20px;
+}
+.settings-install-wrap.hidden { display: none; }
+.settings-install-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, var(--ember-soft), color-mix(in srgb, var(--ember) 8%, transparent));
+  border: 1.5px solid color-mix(in srgb, var(--ember) 35%, var(--line));
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-align: left;
+  transition: transform var(--dur-1) var(--ease-spring), background var(--dur-1);
+}
+.settings-install-btn:active { transform: scale(.98); }
+.settings-install-text strong {
+  display: block;
+  font-size: .9rem;
+  font-weight: 800;
+  color: var(--ember);
+}
+.settings-install-text span {
+  display: block;
+  font-size: .74rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.ios-install-hint {
+  text-align: center;
+  font-size: .78rem;
+  color: var(--muted);
+  margin-top: 10px;
+  line-height: 1.6;
+}
+.ios-install-hint.hidden { display: none; }
+.settings-install-btn.hidden { display: none; }
+
+/* Profile avatar improvement */
+.avatar-lg {
+  background: linear-gradient(135deg, var(--ember), #ff9955);
+  color: #fff;
+  font-weight: 800;
+}
+
+/* Default cardio card highlight */
+.planner-ex-card[data-id="default-cardio-warmup"] .planner-ex-name {
+  color: var(--ember);
+}
+.planner-ex-card[data-id="default-cardio-warmup"] {
+  border-color: color-mix(in srgb, var(--ember) 35%, var(--line));
+  background: linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--ember) 5%, var(--surface)));
+}
+.planner-ex-card[data-id="default-cardio-warmup"] .planner-ex-num {
+  background: var(--ember);
+  color: #fff;
+}

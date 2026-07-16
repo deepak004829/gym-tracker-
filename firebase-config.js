@@ -5,9 +5,10 @@
 //
 // 1. https://console.firebase.google.com → your project → the "</>" (web)
 //    icon → copy the config object it shows you into the object below.
-// 2. Build → Authentication → Sign-in method → enable "Email/Password".
-//    (This app no longer uses Anonymous auth — every real user signs in with
-//    an email + password. "Continue as guest" never touches Firebase at all.)
+// 2. Build → Authentication → Sign-in method → enable "Email/Password" AND
+//    "Google". For Google you just need to pick a support email and Save —
+//    no extra client ID setup required for this compat-SDK popup flow.
+//    ("Continue as guest" never touches Firebase at all.)
 // 3. Build → Firestore Database → Create database → Production mode.
 // 4. Firestore → Rules tab → paste this and click Publish:
 //
